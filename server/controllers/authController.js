@@ -1,3 +1,5 @@
+// actual logic,called by route
+
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");

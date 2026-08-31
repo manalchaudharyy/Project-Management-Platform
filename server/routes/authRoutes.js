@@ -1,3 +1,4 @@
+//routes-> URL endpoints, which func run on which url
 const express = require("express");
 const router = express.Router();
 const { register, login, getMe, logout } = require("../controllers/authController");

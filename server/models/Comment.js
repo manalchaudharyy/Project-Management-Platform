@@ -1,3 +1,4 @@
+//MVC model route controller model-> database schema,data shape
 const mongoose = require("mongoose");
 
 const commentSchema = new mongoose.Schema({
