@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
+import AppLayout from "../components/AppLayout";
+
+const selectClasses =
+  "rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors";
 
 const TaskDetails = () => {
   const { id } = useParams();
@@ -62,53 +66,83 @@ const TaskDetails = () => {
     }
   };
 
-  if (loading) return <p>Loading task...</p>;
-  if (!task) return <p>{error || "Task not found"}</p>;
+  if (loading) {
+    return (
+      <AppLayout title="Loading…">
+        <p className="text-sm text-ink-muted">Loading task…</p>
+      </AppLayout>
+    );
+  }
+
+  if (!task) {
+    return (
+      <AppLayout title="Task not found">
+        <p className="text-sm text-priority-critical">{error || "Task not found"}</p>
+      </AppLayout>
+    );
+  }
 
   return (
-    <div>
-      <h1>{task.title}</h1>
-      <p>{task.description}</p>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+    <AppLayout title={task.title}>
+      <div className="mb-6 rounded-lg border border-line bg-panel p-5">
+        {task.description && <p className="text-sm text-ink-muted mb-4">{task.description}</p>}
 
-      <label>
-        Status:
-        <select value={task.status} onChange={handleStatusChange}>
-          <option value="todo">To Do</option>
-          <option value="in-progress">In Progress</option>
-          <option value="review">Review</option>
-          <option value="done">Done</option>
-        </select>
-      </label>
+        {error && <p className="mb-4 text-sm text-priority-critical">{error}</p>}
 
-      <label>
-        Priority:
-        <select value={task.priority} onChange={handlePriorityChange}>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-          <option value="critical">Critical</option>
-        </select>
-      </label>
+        <div className="flex gap-6">
+          <div>
+            <label className="block text-xs font-mono text-ink-muted mb-1">Status</label>
+            <select value={task.status} onChange={handleStatusChange} className={selectClasses}>
+              <option value="todo">To Do</option>
+              <option value="in-progress">In Progress</option>
+              <option value="review">Review</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
 
-      <h2>Comments</h2>
-      <form onSubmit={handleAddComment}>
+          <div>
+            <label className="block text-xs font-mono text-ink-muted mb-1">Priority</label>
+            <select value={task.priority} onChange={handlePriorityChange} className={selectClasses}>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="font-display text-lg font-semibold text-ink mb-4">Comments</h2>
+
+      <form onSubmit={handleAddComment} className="mb-5 flex gap-3">
         <input
           type="text"
           placeholder="Write a comment"
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-2"
+          required
+          className="flex-1 rounded-md border border-line bg-panel px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors"
         />
-        <button type="submit">Post</button>
+        <button
+          type="submit"
+          className="rounded-md bg-blueprint px-4 py-2 text-sm font-medium text-white hover:bg-blueprint-dark transition-colors"
+        >
+          Post
+        </button>
       </form>
 
-      <ul>
-        {comments.map((comment) => (
-          <li key={comment._id}>{comment.content}</li>
-        ))}
-      </ul>
-    </div>
+      {comments.length === 0 ? (
+        <p className="text-sm text-ink-muted">No comments yet.</p>
+      ) : (
+        <div className="rounded-lg border border-line bg-panel divide-y divide-line">
+          {comments.map((comment) => (
+            <div key={comment._id} className="px-5 py-3">
+              <p className="text-sm text-ink">{comment.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </AppLayout>
   );
 };
 
