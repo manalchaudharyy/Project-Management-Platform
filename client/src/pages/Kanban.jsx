@@ -71,14 +71,14 @@ const Kanban = () => {
               key={col.key}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => handleDrop(col.key)}
-              className="flex-1 min-w-[260px] bg-panel border border-line rounded-lg"
+              className="flex-1 min-w-65 bg-panel border border-line rounded-lg"
             >
               <div className="px-4 py-3 border-b border-line flex items-center justify-between">
                 <h3 className="font-display text-sm font-semibold text-ink">{col.label}</h3>
                 <span className="text-xs font-mono text-ink-muted">{columnTasks.length}</span>
               </div>
 
-              <div className="p-3 space-y-2 min-h-[200px]">
+              <div className="p-3 space-y-2 min-h-50">
                 {columnTasks.map((task) => (
                   <Link
                     key={task._id}
