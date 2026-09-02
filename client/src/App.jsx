@@ -20,8 +20,14 @@ function App() {
         <Route path="/projects/:id/kanban" element={<ProtectedRoute><Kanban /></ProtectedRoute>} />
         <Route path="/tasks/:id" element={<ProtectedRoute><TaskDetails /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/admin/users" element={<ProtectedRoute roles={["admin"]}><AdminUsers /></ProtectedRoute>} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
+                <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute roles={["admin", "pm"]}>
+              <AdminUsers />
+            </ProtectedRoute>
+          }
+        /><Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );

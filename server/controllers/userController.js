@@ -1,6 +1,6 @@
 const User = require("../models/User");
 
-const ROLE_VALUES = ["member", "pm", "admin"];
+const ROLE_VALUES = ["member", "pm"]; // "admin" can no longer be assigned via this endpoint
 
 const getUsers = async (req, res) => {
   try {
@@ -22,8 +22,12 @@ const updateUserRole = async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (user._id.toString() === req.user.id && role !== "admin") {
-      return res.status(400).json({ message: "You cannot change your own admin role" });
+    if (user._id.toString() === req.user.id) {
+      return res.status(400).json({ message: "You cannot change your own role" });
+    }
+
+    if (user.role === "admin") {
+      return res.status(400).json({ message: "Admin roles cannot be changed here" });
     }
 
     user.role = role;

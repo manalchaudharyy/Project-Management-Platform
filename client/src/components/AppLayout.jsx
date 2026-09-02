@@ -28,7 +28,11 @@ const AppLayout = ({ title, children }) => {
 
         <nav className="flex-1 px-3 py-4 space-y-1">
           {navItems
-            .concat(user?.role === "admin" ? [{ to: "/admin/users", label: "Manage Users" }] : [])
+            .concat(
+              ["admin", "pm"].includes(user?.role)
+                ? [{ to: "/admin/users", label: "Manage Users" }]
+                : []
+            )
             .map((item) => {
               const active = location.pathname.startsWith(item.to);
               return (

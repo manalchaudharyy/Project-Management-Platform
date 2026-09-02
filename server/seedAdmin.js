@@ -4,9 +4,9 @@ const connectDB = require("./config/db");
 const User = require("./models/User");
 
 const ADMIN = {
-  username: "admin",
-  email: "admin@example.com", // change this
-  password: "ChangeMe123",     // change this, must be 6+ chars
+  username: "manal",
+  email: "manalch@gmail.com", 
+  password: "qwert_y",    
 };
 
 const run = async () => {
