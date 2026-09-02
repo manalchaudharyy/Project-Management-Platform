@@ -8,6 +8,7 @@ import Projects from "./pages/Projects";
 import Register from "./pages/Register";
 import Kanban from "./pages/Kanban";
 import ProtectedRoute from "./components/ProtectedRoute";
+import {BrowserRouter, Routes, Route, Navigate} from "react-router-dom";
 
 function App() {
   return (
@@ -63,6 +64,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );
