@@ -28,7 +28,7 @@ const AppLayout = ({ title, children }) => {
   const SidebarContent = (
     <>
       <div className="px-6 py-6 border-b border-white/10 flex items-center justify-between">
-        <span className="font-display text-lg font-semibold tracking-tight">Foreman</span>
+       <span className="font-display italic text-lg font-semibold tracking-tight">Loom</span>
         <button
           onClick={() => setMobileOpen(false)}
           className="lg:hidden text-white/70 hover:text-white text-xl leading-none"

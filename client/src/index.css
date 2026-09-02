@@ -1,31 +1,31 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #172b4d;
-  --color-ink-muted: #6b778c;
-  --color-paper: #f4f2ee;
-  --color-panel: #ffffff;
-  --color-line: #e3ddd2;
-  --color-blueprint: #0052cc;
-  --color-blueprint-dark: #0747a6;
-  --color-marker: #b98900;
+  --color-ink: #1b1712;
+  --color-ink-muted: #6b5f4d;
+  --color-paper: #e4d9c0;
+  --color-panel: #f3ecdd;
+  --color-line: #c7b996;
+  --color-blueprint: #1b1712;
+  --color-blueprint-dark: #100d09;
+  --color-marker: #8c6a2f;
 
-  --color-status-todo: #6b778c;
-  --color-status-progress: #0052cc;
-  --color-status-review: #b98900;
-  --color-status-done: #216e4e;
+  --color-status-todo: #8c806a;
+  --color-status-progress: #1b1712;
+  --color-status-review: #8c6a2f;
+  --color-status-done: #3f3527;
 
-  --color-priority-low: #6b778c;
-  --color-priority-medium: #0052cc;
-  --color-priority-high: #b98900;
-  --color-priority-critical: #ae2a19;
+  --color-priority-low: #8c806a;
+  --color-priority-medium: #1b1712;
+  --color-priority-high: #8c6a2f;
+  --color-priority-critical: #6b2e20;
 
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Work Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  --shadow-card: 0 1px 2px rgba(23,43,77,0.06), 0 2px 8px rgba(23,43,77,0.06);
-  --shadow-panel: 0 8px 24px rgba(23,43,77,0.12);
+  --shadow-card: 0 1px 2px rgba(27,23,18,0.08), 0 2px 8px rgba(27,23,18,0.08);
+  --shadow-panel: 0 8px 24px rgba(27,23,18,0.18);
 }
 
 body {

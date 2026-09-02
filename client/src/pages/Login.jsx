@@ -35,7 +35,7 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-paper px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <span className="font-display text-2xl font-semibold text-ink">Foreman</span>
+          <span className="font-display italic text-2xl font-semibold text-ink">Loom</span>
           <p className="mt-1 text-sm text-ink-muted">Sign in to your workspace</p>
         </div>
 
