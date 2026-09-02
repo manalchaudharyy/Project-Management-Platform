@@ -27,22 +27,24 @@ const AppLayout = ({ title, children }) => {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {navItems.map((item) => {
-            const active = location.pathname.startsWith(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`block rounded-md px-3 py-2 text-sm transition-colors ${
-                  active
-                    ? "bg-white/10 text-white"
-                    : "text-white/70 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+          {navItems
+            .concat(user?.role === "admin" ? [{ to: "/admin/users", label: "Manage Users" }] : [])
+            .map((item) => {
+              const active = location.pathname.startsWith(item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`block rounded-md px-3 py-2 text-sm transition-colors ${
+                    active
+                      ? "bg-white/10 text-white"
+                      : "text-white/70 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
         </nav>
 
         <div className="px-6 py-4 border-t border-white/10">

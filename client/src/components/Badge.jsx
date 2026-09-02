@@ -1,93 +1,33 @@
-import { useState } from "react";
-import { useDispatch } from "react-redux";
-import { useNavigate, Link } from "react-router-dom";
-import axiosClient from "../api/axiosClient";
-import { setCredentials } from "../store/authSlice";
-
-const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      const res = await axiosClient.post("/auth/login", { email, password });
-
-      dispatch(
-        setCredentials({
-          user: res.data.user,
-          token: res.data.token,
-        })
-      );
-
-      navigate("/dashboard");
-    } catch (err) {
-      setError("Invalid email or password");
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-paper px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <span className="font-display text-2xl font-semibold text-ink">Foreman</span>
-          <p className="mt-1 text-sm text-ink-muted">Sign in to your workspace</p>
-        </div>
-
-        <form
-          onSubmit={handleSubmit}
-          className="bg-panel border border-line rounded-lg p-6 space-y-4"
-        >
-          {error && (
-            <p className="rounded-md bg-priority-critical/10 px-3 py-2 text-sm text-priority-critical">
-              {error}
-            </p>
-          )}
-
-          <div>
-            <label className="block text-xs font-mono text-ink-muted mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-mono text-ink-muted mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full rounded-md bg-blueprint py-2.5 text-sm font-medium text-white hover:bg-blueprint-dark transition-colors"
-          >
-            Sign in
-          </button>
-        </form>
-
-        <p className="mt-4 text-center text-sm text-ink-muted">
-          Don't have an account?{" "}
-          <Link to="/register" className="text-blueprint hover:text-marker font-medium">
-            Create one
-          </Link>
-        </p>
-      </div>
-    </div>
-  );
+const STATUS_STYLES = {
+  planning: "bg-status-todo/10 text-status-todo",
+  "on-hold": "bg-priority-medium/10 text-priority-medium",
+  active: "bg-status-progress/10 text-status-progress",
+  todo: "bg-status-todo/10 text-status-todo",
+  "in-progress": "bg-status-progress/10 text-status-progress",
+  review: "bg-status-review/10 text-status-review",
+  done: "bg-status-done/10 text-status-done",
+  completed: "bg-status-done/10 text-status-done",
+  archived: "bg-ink-muted/10 text-ink-muted",
 };
 
-export default Login;
+const PRIORITY_STYLES = {
+  low: "bg-priority-low/10 text-priority-low",
+  medium: "bg-priority-medium/10 text-priority-medium",
+  high: "bg-priority-high/10 text-priority-high",
+  critical: "bg-priority-critical/10 text-priority-critical",
+};
+
+const baseClasses =
+  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-mono whitespace-nowrap";
+
+export const StatusBadge = ({ status }) => (
+  <span className={`${baseClasses} ${STATUS_STYLES[status] || "bg-ink-muted/10 text-ink-muted"}`}>
+    {status}
+  </span>
+);
+
+export const PriorityBadge = ({ priority }) => (
+  <span className={`${baseClasses} ${PRIORITY_STYLES[priority] || "bg-ink-muted/10 text-ink-muted"}`}>
+    {priority}
+  </span>
+);

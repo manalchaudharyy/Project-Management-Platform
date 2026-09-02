@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { setCredentials } from "../store/authSlice";
 
@@ -78,13 +78,6 @@ const Login = () => {
             Sign in
           </button>
         </form>
-
-        <p className="mt-4 text-center text-sm text-ink-muted">
-          Don't have an account?{" "}
-          <Link to="/register" className="text-blueprint hover:text-marker font-medium">
-            Create one
-          </Link>
-        </p>
       </div>
     </div>
   );

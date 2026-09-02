@@ -1,20 +1,17 @@
-// actual logic,called by route
-
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-// Helper: generate a JWT for a given user id
 const generateToken = (userId, role) => {
   return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
 };
 
-// POST /api/auth/register
-const register = async (req, res) => {
+// POST /api/users (admin only) — admin creates member/pm/admin accounts
+const createUser = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, role } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ message: "Username, email and password are required" });
@@ -29,6 +26,9 @@ const register = async (req, res) => {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
+    const allowedRoles = ["member", "pm", "admin"];
+    const finalRole = allowedRoles.includes(role) ? role : "member";
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email is already registered" });
@@ -41,23 +41,18 @@ const register = async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      role: "member",
+      role: finalRole,
     });
-
-    const token = generateToken(user._id, user.role);
 
     res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
     });
   } catch (error) {
-    console.error("Register error:", error.message);
-    res.status(500).json({ message: "Server error during registration" });
+    console.error("Create user error:", error.message);
+    res.status(500).json({ message: "Server error creating user" });
   }
 };
 
@@ -110,8 +105,10 @@ const getMe = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 // POST /api/auth/logout
 const logout = async (req, res) => {
   res.status(200).json({ message: "Logged out successfully" });
 };
-module.exports = { register, login, getMe, logout };
+
+module.exports = { createUser, login, getMe, logout };
