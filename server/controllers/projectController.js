@@ -61,7 +61,9 @@ const getProjects = async (req, res) => {
 
 const getProjectById = async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id);
+    const project = await Project.findById(req.params.id)
+      .populate("owner", "username email")
+      .populate("members", "username email");
 
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
@@ -71,8 +73,8 @@ const getProjectById = async (req, res) => {
     // member can view a project's details. Previously this endpoint had no
     // access check at all, so any logged-in user could view any project by
     // guessing/enumerating its id.
-    const isOwner = project.owner.toString() === req.user.id;
-    const isMember = project.members.some((m) => m.toString() === req.user.id);
+    const isOwner = project.owner._id.toString() === req.user.id;
+    const isMember = project.members.some((m) => m._id.toString() === req.user.id);
 
     if (!isOwner && !isMember) {
       return res.status(403).json({ message: "Forbidden: you don't have access to this project" });
@@ -160,6 +162,7 @@ const addMember = async (req, res) => {
 
     project.members.push(userId);
     await project.save();
+    await project.populate("members", "username email");
 
     res.status(200).json(project);
   } catch (error) {
@@ -193,6 +196,7 @@ const removeMember = async (req, res) => {
 
     project.members.pull(userId);
     await project.save();
+    await project.populate("members", "username email");
 
     res.status(200).json(project);
   } catch (error) {

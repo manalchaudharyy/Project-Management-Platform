@@ -1,19 +1,28 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { useSelector } from "react-redux";
 import axiosClient from "../api/axiosClient";
 import AppLayout from "../components/AppLayout";
 
 const selectClasses =
   "rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors";
 
+const inputClasses =
+  "flex-1 rounded-md border border-line bg-panel px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors";
+
 const TaskDetails = () => {
   const { id } = useParams();
+  const currentUser = useSelector((state) => state.auth.user);
 
   const [task, setTask] = useState(null);
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newComment, setNewComment] = useState("");
+
+  // Which comment (by id) is currently being edited, and its draft text.
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState("");
 
   const fetchData = async () => {
     try {
@@ -57,12 +66,42 @@ const TaskDetails = () => {
   const handleAddComment = async (e) => {
     e.preventDefault();
     try {
-      await axiosClient.post(`/tasks/${id}/comments`, { content: newComment });
+      const res = await axiosClient.post(`/tasks/${id}/comments`, { content: newComment });
       setNewComment("");
-      const res = await axiosClient.get(`/tasks/${id}/comments`);
-      setComments(res.data);
+      setComments((prev) => [...prev, res.data]);
     } catch (err) {
       setError("Could not add comment");
+    }
+  };
+
+  const startEdit = (comment) => {
+    setEditingId(comment._id);
+    setEditText(comment.content);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText("");
+  };
+
+  const handleSaveEdit = async (commentId) => {
+    if (!editText.trim()) return;
+    try {
+      const res = await axiosClient.put(`/comments/${commentId}`, { content: editText });
+      setComments((prev) => prev.map((c) => (c._id === commentId ? res.data : c)));
+      cancelEdit();
+    } catch (err) {
+      setError("Could not update comment");
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm("Delete this comment?")) return;
+    try {
+      await axiosClient.delete(`/comments/${commentId}`);
+      setComments((prev) => prev.filter((c) => c._id !== commentId));
+    } catch (err) {
+      setError("Could not delete comment");
     }
   };
 
@@ -121,7 +160,7 @@ const TaskDetails = () => {
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
           required
-          className="flex-1 rounded-md border border-line bg-panel px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors"
+          className={inputClasses}
         />
         <button
           type="submit"
@@ -135,11 +174,63 @@ const TaskDetails = () => {
         <p className="text-sm text-ink-muted">No comments yet.</p>
       ) : (
         <div className="rounded-lg border border-line bg-panel divide-y divide-line">
-          {comments.map((comment) => (
-            <div key={comment._id} className="px-5 py-3">
-              <p className="text-sm text-ink">{comment.content}</p>
-            </div>
-          ))}
+          {comments.map((comment) => {
+            const isOwn = comment.author?._id === currentUser?.id;
+            const isEditing = editingId === comment._id;
+
+            return (
+              <div key={comment._id} className="px-5 py-3">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-mono text-ink-muted">
+                    {comment.author?.username || "Unknown"}
+                    {isOwn && <span className="text-blueprint"> (you)</span>}
+                  </p>
+                  {isOwn && !isEditing && (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => startEdit(comment)}
+                        className="text-xs text-ink-muted hover:text-marker"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteComment(comment._id)}
+                        className="text-xs text-ink-muted hover:text-priority-critical"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {isEditing ? (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      className={inputClasses}
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => handleSaveEdit(comment._id)}
+                      className="rounded-md bg-blueprint px-3 py-2 text-xs font-medium text-white hover:bg-blueprint-dark transition-colors"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="rounded-md border border-line px-3 py-2 text-xs font-medium text-ink-muted hover:text-ink transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-ink">{comment.content}</p>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </AppLayout>

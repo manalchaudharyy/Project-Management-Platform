@@ -31,7 +31,9 @@ const getComments = async (req, res) => {
       return res.status(403).json({ message: "Forbidden: you don't have access to this task" });
     }
 
-    const comments = await Comment.find({ task: task._id }).sort({ createdAt: 1 });
+    const comments = await Comment.find({ task: task._id })
+      .sort({ createdAt: 1 })
+      .populate("author", "username");
     res.status(200).json(comments);
   } catch (error) {
     console.error("Get comments error:", error.message);
@@ -62,6 +64,7 @@ const createComment = async (req, res) => {
       author: req.user.id,
       task: task._id,
     });
+    await comment.populate("author", "username");
 
     res.status(201).json(comment);
   } catch (error) {
@@ -93,8 +96,9 @@ const updateComment = async (req, res) => {
     }
 
     comment.content = content;
-    const updatedComment = await comment.save();
-    res.status(200).json(updatedComment);
+    await comment.save();
+    await comment.populate("author", "username");
+    res.status(200).json(comment);
   } catch (error) {
     if (error.name === "ValidationError") {
       return res.status(400).json({ message: error.message });
