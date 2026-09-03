@@ -37,11 +37,15 @@ const createTask = async (req, res) => {
       title,
       description,
       project,
-      assignee,
+      // A dropdown's "Unassigned" option posts an empty string, which Mongoose
+      // would otherwise try (and fail) to cast to an ObjectId.
+      assignee: assignee ? assignee : undefined,
       priority,
       status,
       dueDate,
     });
+
+    await task.populate({ path: "assignee", select: "username email" });
 
     res.status(201).json(task);
   } catch (error) {
@@ -91,7 +95,11 @@ const getTasks = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const [tasks, totalCount] = await Promise.all([
-      Task.find(filter).sort(sort).skip(skip).limit(limit),
+      Task.find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .populate({ path: "assignee", select: "username email" }),
       Task.countDocuments(filter),
     ]);
 
@@ -108,7 +116,10 @@ const getTasks = async (req, res) => {
 };
 const getTaskById = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findById(req.params.id).populate({
+      path: "assignee",
+      select: "username email",
+    });
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
@@ -133,7 +144,13 @@ const updateTask = async (req, res) => {
       return res.status(403).json({ message: "Forbidden: only the assignee or a PM/Admin can update this task" });
     }
 
-    const { title, description, status, priority, dueDate, assignee } = req.body;
+    let { title, description, status, priority, dueDate, assignee } = req.body;
+
+    // A dropdown's "Unassigned" option posts an empty string; normalize that
+    // to null so it clears the assignee instead of failing ObjectId cast.
+    if (assignee === "") {
+      assignee = null;
+    }
 
     if (title !== undefined && !title.trim()) {
       return res.status(400).json({ message: "Task title cannot be empty" });
@@ -152,8 +169,6 @@ const updateTask = async (req, res) => {
       return res.status(400).json({ message: "dueDate must be a valid date" });
     }
 
-    // Fields a "member" is allowed to change vs a pm/admin/assignee-with-elevated-role.
-    // Track every actual change for the task history log.
     const trackableFields = ["title", "description", "status", "priority", "dueDate", "assignee"];
     const incoming = { title, description, status, priority, dueDate, assignee };
     const historyEntries = [];
@@ -180,7 +195,6 @@ const updateTask = async (req, res) => {
     };
 
     if (req.user.role === "member") {
-      // Members can only change status - not reassign, retitle, etc.
       applyChange("status");
     } else {
       trackableFields.forEach(applyChange);
@@ -191,38 +205,4 @@ const updateTask = async (req, res) => {
     }
 
     const updatedTask = await task.save();
-    res.status(200).json(updatedTask);
-  } catch (error) {
-    if (error.name === "ValidationError") {
-      return res.status(400).json({ message: error.message });
-    }
-    console.error("Update task error:", error.message);
-    res.status(500).json({ message: "Server error updating task" });
-  }
-};
-
-const deleteTask = async (req, res) => {
-  try {
-    const task = await Task.findById(req.params.id);
-
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
-    }
-
-    const isPmOrAdmin = req.user.role === "pm" || req.user.role === "admin";
-
-    // Deletion is irreversible, unlike status updates - restrict it to
-    // PM/Admin only, even though a regular assignee can update the task.
-    if (!isPmOrAdmin) {
-      return res.status(403).json({ message: "Forbidden: only a PM/Admin can delete this task" });
-    }
-
-    await task.deleteOne();
-    res.status(200).json({ message: "Task deleted" });
-  } catch (error) {
-    console.error("Delete task error:", error.message);
-    res.status(500).json({ message: "Server error deleting task" });
-  }
-};
-
-module.exports = { createTask, getTasks, getTaskById, updateTask, deleteTask };
+    await updatedTask.populate({ path: "assignee", select: "username email" });
