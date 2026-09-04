@@ -206,3 +206,36 @@ const updateTask = async (req, res) => {
 
     const updatedTask = await task.save();
     await updatedTask.populate({ path: "assignee", select: "username email" });
+    res.status(200).json(updatedTask);
+  } catch (error) {
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ message: error.message });
+    }
+    console.error("Update task error:", error.message);
+    res.status(500).json({ message: "Server error updating task" });
+  }
+};
+
+const deleteTask = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    const isPmOrAdmin = req.user.role === "pm" || req.user.role === "admin";
+
+    if (!isPmOrAdmin) {
+      return res.status(403).json({ message: "Forbidden: only a PM/Admin can delete this task" });
+    }
+
+    await task.deleteOne();
+    res.status(200).json({ message: "Task deleted" });
+  } catch (error) {
+    console.error("Delete task error:", error.message);
+    res.status(500).json({ message: "Server error deleting task" });
+  }
+};
+
+module.exports = { createTask, getTasks, getTaskById, updateTask, deleteTask };
