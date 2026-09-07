@@ -10,8 +10,9 @@ const { notFound, errorHandler } = require("./middleware/errorHandler");
 const express = require("express");
 const app = express()
 const PORT = process.env.PORT || 5000;
+const aiRoutes = require("./routes/aiRoutes"); 
 app.use(express.json());
-
+app.use("/api/projects", aiRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/search", searchRoutes);
