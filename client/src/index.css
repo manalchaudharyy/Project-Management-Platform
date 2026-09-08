@@ -1,34 +1,58 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #1b1712;
-  --color-ink-muted: #6b5f4d;
-  --color-paper: #e4d9c0;
-  --color-panel: #f3ecdd;
-  --color-line: #c7b996;
-  --color-blueprint: #1b1712;
-  --color-blueprint-dark: #100d09;
-  --color-marker: #8c6a2f;
+  --color-ink: #1c1917;
+  --color-ink-muted: #78716c;
+  --color-paper: #f7f6f4;
+  --color-panel: #ffffff;
+  --color-line: #e7e5e4;
 
-  --color-status-todo: #8c806a;
-  --color-status-progress: #1b1712;
-  --color-status-review: #8c6a2f;
-  --color-status-done: #3f3527;
+  /* Professional graphite/amber theme — no blue anywhere */
+  --color-blueprint: #292524;
+  --color-blueprint-dark: #1c1917;
+  --color-marker: #b45309;
 
-  --color-priority-low: #8c806a;
-  --color-priority-medium: #1b1712;
-  --color-priority-high: #8c6a2f;
-  --color-priority-critical: #6b2e20;
+  --color-status-todo: #78716c;
+  --color-status-progress: #b45309;
+  --color-status-review: #7c3aed;
+  --color-status-done: #059669;
 
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
-  --font-sans: "Work Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --color-priority-low: #a8a29e;
+  --color-priority-medium: #b45309;
+  --color-priority-high: #ea580c;
+  --color-priority-critical: #dc2626;
 
-  --shadow-card: 0 1px 2px rgba(27,23,18,0.08), 0 2px 8px rgba(27,23,18,0.08);
-  --shadow-panel: 0 8px 24px rgba(27,23,18,0.18);
+  --font-display: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --shadow-card:
+    0 1px 3px rgba(28, 25, 23, 0.06),
+    0 8px 24px rgba(28, 25, 23, 0.05);
+
+  --shadow-panel:
+    0 10px 35px rgba(28, 25, 23, 0.08);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background-color: var(--color-paper);
-  color: var(--color-ink);
+  margin: 0;
+  background: #f7f6f4;
+  color: #1c1917;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+::selection {
+  background: #fde68a;
+  color: #78350f;
 }

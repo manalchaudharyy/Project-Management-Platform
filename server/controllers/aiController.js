@@ -1,8 +1,4 @@
-// server/controllers/aiController.js
 const { generateTasksFromPrompt } = require("../services/aiService");
-
-// POST /api/projects/:projectId/ai/generate-tasks
-// Body: { prompt: "Build an e-commerce checkout system with Stripe" }
 const generateTasks = async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -13,8 +9,6 @@ const generateTasks = async (req, res) => {
 
     const tasks = await generateTasksFromPrompt(prompt);
 
-    // NOTE: nothing is saved to the database here.
-    // We just hand the suggestions back to the frontend for the user to review.
     res.status(200).json({ tasks });
   } catch (error) {
     console.error("AI task generation error:", error.message);

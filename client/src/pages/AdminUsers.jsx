@@ -93,7 +93,8 @@ const AdminUsers = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-mono text-ink-muted mb-1">Email</label>
+            
+            <label className="block text-xs font-medium text-ink-muted mb-1.5">Name</label>
             <input
               type="email"
               name="email"
@@ -151,7 +152,9 @@ const AdminUsers = () => {
                   <p className="text-ink-muted text-xs">{u.email}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs text-ink-muted uppercase">{u.role}</span>
+                  <span className="rounded-full bg-ink-muted/10 px-2 py-0.5 text-xs font-medium text-ink-muted capitalize">
+  {u.role}
+</span>
                   {u.role !== "admin" && (
                     <button
                       onClick={() => handleRoleToggle(u._id, u.role)}

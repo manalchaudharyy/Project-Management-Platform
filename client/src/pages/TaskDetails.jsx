@@ -111,7 +111,7 @@ const TaskDetails = () => {
 
         <div className="flex flex-wrap gap-6">
           <div>
-            <label className="block text-xs font-mono text-ink-muted mb-1">Status</label>
+           <label className="block text-xs font-medium text-ink-muted mb-1.5">Status</label>
             <select value={task.status} onChange={handleStatusChange} className={selectClasses}>
               <option value="todo">To Do</option>
               <option value="in-progress">In Progress</option>

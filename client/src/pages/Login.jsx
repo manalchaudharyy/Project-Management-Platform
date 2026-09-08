@@ -31,56 +31,143 @@ const Login = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-paper px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <span className="font-display italic text-2xl font-semibold text-ink">Loom</span>
-          <p className="mt-1 text-sm text-ink-muted">Sign in to your workspace</p>
+ return (
+  <div className="min-h-screen bg-slate-950 lg:grid lg:grid-cols-2">
+
+    {/* Left visual */}
+    <div
+      className="relative hidden bg-cover bg-center lg:block"
+      style={{
+        backgroundImage:
+          "url('https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=90')",
+      }}
+    >
+
+      <div className="absolute inset-0 bg-slate-950/70" />
+
+      <div className="relative z-10 flex h-full flex-col justify-between p-12 text-white">
+
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blueprint font-bold">
+            L
+          </div>
+
+          <span className="text-xl font-bold">
+            Loom
+          </span>
+        </div>
+
+        <div className="max-w-lg">
+
+          <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-amber-400">
+            Project Management
+          </p>
+
+          <h1 className="text-5xl font-bold leading-tight">
+            Turn your team's
+            <span className="text-amber-400"> ideas into reality.</span>
+          </h1>
+
+          <p className="mt-5 text-lg leading-8 text-slate-300">
+            Plan projects, manage tasks, collaborate with your team,
+            and keep everything organized in one workspace.
+          </p>
+
+        </div>
+
+        <p className="text-sm text-white/40">
+          © 2026 Loom Workspace
+        </p>
+
+      </div>
+
+    </div>
+
+    {/* Login */}
+    <div className="flex items-center justify-center bg-white px-6 py-12">
+
+      <div className="w-full max-w-md">
+
+        <div className="mb-10">
+
+          <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-blueprint text-xl font-bold text-white shadow-lg shadow-blueprint/30 lg:hidden">
+            L
+          </div>
+
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+            Welcome back
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-500">
+            Sign in to continue to your workspace.
+          </p>
+
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="bg-panel border border-line rounded-lg p-6 space-y-4"
+          className="space-y-5"
         >
+
           {error && (
-            <p className="rounded-md bg-priority-critical/10 px-3 py-2 text-sm text-priority-critical">
+            <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
               {error}
-            </p>
+            </div>
           )}
 
           <div>
-            <label className="block text-xs font-mono text-ink-muted mb-1">Email</label>
+
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              Email address
+            </label>
+
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors"
+              placeholder="you@example.com"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blueprint focus:bg-white focus:ring-4 focus:ring-blueprint/10"
             />
+
           </div>
 
           <div>
-            <label className="block text-xs font-mono text-ink-muted mb-1">Password</label>
+
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              Password
+            </label>
+
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors"
+              placeholder="••••••••"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blueprint focus:bg-white focus:ring-4 focus:ring-blueprint/10"
             />
+
           </div>
 
           <button
             type="submit"
-            className="w-full rounded-md bg-blueprint py-2.5 text-sm font-medium text-white hover:bg-blueprint-dark transition-colors"
+            className="w-full rounded-xl bg-blueprint py-3.5 text-sm font-semibold text-white shadow-lg shadow-blueprint/20 transition hover:bg-blueprint-dark hover:shadow-xl"
           >
-            Sign in
+            Sign in to Loom →
           </button>
+
         </form>
+
+        <p className="mt-8 text-center text-xs text-slate-400">
+          Secure workspace • Built for productive teams
+        </p>
+
       </div>
+
     </div>
-  );
+
+  </div>
+);
 };
 
 export default Login;

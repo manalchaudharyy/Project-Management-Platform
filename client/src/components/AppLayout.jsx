@@ -10,95 +10,172 @@ const navItems = [
 ];
 
 const AppLayout = ({ title, children }) => {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const location = useLocation();
-  const user = useSelector((state) => state.auth.user);
-  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const user = useSelector((state) => state.auth.user);
+
+  const items = navItems.concat(
+    ["admin", "pm"].includes(user?.role)
+      ? [{ to: "/admin/users", label: "Manage Users" }]
+      : []
+  );
 
   const handleLogout = () => {
     dispatch(logout());
     navigate("/login");
   };
 
-  const items = navItems.concat(
-    ["admin", "pm"].includes(user?.role) ? [{ to: "/admin/users", label: "Manage Users" }] : []
-  );
-
-  const SidebarContent = (
-    <>
-      <div className="px-6 py-6 border-b border-white/10 flex items-center justify-between">
-       <span className="font-display italic text-lg font-semibold tracking-tight">Loom</span>
-        <button
-          onClick={() => setMobileOpen(false)}
-          className="lg:hidden text-white/70 hover:text-white text-xl leading-none"
-        >
-          ✕
-        </button>
-      </div>
-
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {items.map((item) => {
-          const active = location.pathname.startsWith(item.to);
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              onClick={() => setMobileOpen(false)}
-              className={`block rounded-md px-3 py-2 text-sm transition-colors ${
-                active ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="px-6 py-4 border-t border-white/10">
-        <p className="text-sm text-white/90 truncate">{user?.username}</p>
-        <p className="text-xs text-white/50 font-mono">{user?.role}</p>
-        <button
-          onClick={handleLogout}
-          className="mt-3 text-xs text-white/60 hover:text-marker transition-colors"
-        >
-          Log out
-        </button>
-      </div>
-    </>
-  );
+  const initials =
+    user?.username
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "U";
 
   return (
-    <div className="min-h-screen flex bg-paper font-sans">
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-60 shrink-0 bg-blueprint-dark text-white flex-col">
-        {SidebarContent}
-      </aside>
+    <div className="min-h-screen bg-paper">
 
-      {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="w-64 bg-blueprint-dark text-white flex flex-col">{SidebarContent}</div>
-          <div className="flex-1 bg-black/40" onClick={() => setMobileOpen(false)} />
-        </div>
-      )}
+      {/* Top navbar */}
+      <header className="sticky top-0 z-40 border-b border-line bg-white">
+        <div className="mx-auto flex h-14 max-w-350 items-center gap-2 px-4 sm:px-6">
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="border-b border-line bg-panel px-4 sm:px-8 py-4 sm:py-5 flex items-center gap-3">
+          {/* Logo */}
+          <Link to="/dashboard" className="flex items-center gap-2 pr-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blueprint text-xs font-bold text-white">
+              L
+            </div>
+            <span className="hidden text-sm font-semibold tracking-tight text-ink sm:inline">
+              Loom
+            </span>
+          </Link>
+
+          {/* Nav links (desktop) */}
+          <nav className="hidden items-center gap-1 md:flex">
+            {items.map((item) => {
+              const active = location.pathname.startsWith(item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`rounded-md border-b-2 px-3 py-1.5 text-sm font-medium transition ${
+                    active
+                      ? "border-marker text-ink"
+                      : "border-transparent text-ink-muted hover:bg-paper hover:text-ink"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Mobile nav toggle */}
           <button
-            onClick={() => setMobileOpen(true)}
-            className="lg:hidden text-ink text-xl leading-none"
+            onClick={() => setMobileNavOpen((v) => !v)}
+            className="rounded-md p-1.5 text-ink-muted hover:bg-paper md:hidden"
           >
             ☰
           </button>
-          {title && (
-            <h1 className="font-display text-lg sm:text-xl font-semibold text-ink truncate">
-              {title}
-            </h1>
-          )}
-        </header>
-        <main className="flex-1 px-4 sm:px-8 py-6 sm:py-8">{children}</main>
-      </div>
+
+          <div className="flex-1" />
+
+          {/* Search */}
+          <div className="hidden w-52 lg:block">
+            <div className="flex items-center gap-2 rounded-md border border-line bg-paper px-3 py-1.5">
+              <span className="text-ink-muted">⌕</span>
+              <input
+                placeholder="Search..."
+                className="w-full bg-transparent text-sm outline-none placeholder:text-ink-muted"
+              />
+            </div>
+          </div>
+
+          {/* Notification */}
+          <button className="relative rounded-md p-2 text-ink-muted transition hover:bg-paper">
+            ♧
+            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-marker" />
+          </button>
+
+          {/* Avatar + dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-blueprint text-xs font-bold text-white"
+            >
+              {initials}
+            </button>
+
+            {menuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setMenuOpen(false)}
+                />
+                <div className="absolute right-0 z-50 mt-2 w-48 rounded-md border border-line bg-white p-1 shadow-panel">
+                  <div className="px-3 py-2">
+                    <p className="truncate text-sm font-medium text-ink">
+                      {user?.username}
+                    </p>
+                    <p className="text-xs capitalize text-ink-muted">
+                      {user?.role}
+                    </p>
+                  </div>
+                  <div className="my-1 border-t border-line" />
+                  <button
+                    onClick={handleLogout}
+                    className="w-full rounded-md px-3 py-2 text-left text-sm text-ink-muted transition hover:bg-red-50 hover:text-red-600"
+                  >
+                    ↪ Sign out
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Nav links (mobile) */}
+        {mobileNavOpen && (
+          <nav className="flex flex-col gap-0.5 border-t border-line px-4 py-2 md:hidden">
+            {items.map((item) => {
+              const active = location.pathname.startsWith(item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMobileNavOpen(false)}
+                  className={`rounded-md px-3 py-2 text-sm font-medium ${
+                    active
+                      ? "bg-paper text-ink"
+                      : "text-ink-muted hover:bg-paper hover:text-ink"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
+      </header>
+
+      {/* Page title bar */}
+      {title && (
+        <div className="border-b border-line bg-white">
+          <div className="mx-auto max-w-350 px-4 py-3 sm:px-6">
+            <h1 className="text-base font-semibold text-ink">{title}</h1>
+          </div>
+        </div>
+      )}
+
+      {/* Main */}
+      <main className="mx-auto max-w-350 px-4 py-6 sm:px-6 sm:py-8">
+        {children}
+      </main>
     </div>
   );
 };
