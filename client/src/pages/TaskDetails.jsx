@@ -30,7 +30,9 @@ const TaskDetails = () => {
       setTask(taskRes.data);
       setComments(commentsRes.data);
 
-      if (canReassign && taskRes.data.project) {
+      // Everyone needs the member list now — members can reassign tasks too,
+      // not just PM/Admin.
+      if (taskRes.data.project) {
         const projectRes = await axiosClient.get(`/projects/${taskRes.data.project}`);
         setMembers(projectRes.data.members || []);
       }
@@ -52,7 +54,7 @@ const TaskDetails = () => {
       const res = await axiosClient.put(`/tasks/${id}`, { status });
       setTask(res.data);
     } catch (err) {
-      setError("Could not update status");
+      setError(err.response?.data?.message || "Could not update status");
     }
   };
 
@@ -62,7 +64,7 @@ const TaskDetails = () => {
       const res = await axiosClient.put(`/tasks/${id}`, { priority });
       setTask(res.data);
     } catch (err) {
-      setError("Could not update priority");
+      setError(err.response?.data?.message || "Could not update priority");
     }
   };
 
@@ -72,7 +74,7 @@ const TaskDetails = () => {
       const res = await axiosClient.put(`/tasks/${id}`, { assignee });
       setTask(res.data);
     } catch (err) {
-      setError("Could not update assignee");
+      setError(err.response?.data?.message || "Could not update assignee");
     }
   };
 
@@ -176,7 +178,7 @@ const TaskDetails = () => {
 
         <div className="flex flex-wrap gap-6">
           <div>
-           <label className="block text-xs font-medium text-ink-muted mb-1.5">Status</label>
+            <label className="block text-xs font-medium text-ink-muted mb-1.5">Status</label>
             <select value={task.status} onChange={handleStatusChange} className={selectClasses}>
               <option value="todo">To Do</option>
               <option value="in-progress">In Progress</option>
@@ -185,7 +187,7 @@ const TaskDetails = () => {
             </select>
           </div>
 
-          <div>
+                   <div>
             <label className="block text-xs font-mono text-ink-muted mb-1">Priority</label>
             <select value={task.priority} onChange={handlePriorityChange} className={selectClasses}>
               <option value="low">Low</option>
@@ -195,7 +197,7 @@ const TaskDetails = () => {
             </select>
           </div>
 
-          <div>
+                    <div>
             <label className="block text-xs font-mono text-ink-muted mb-1">Assignee</label>
             {canReassign ? (
               <select

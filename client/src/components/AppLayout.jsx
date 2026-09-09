@@ -177,7 +177,7 @@ const AppLayout = ({ title, children }) => {
       )}
 
       {/* Main column */}
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
 
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-white px-4 sm:px-6">

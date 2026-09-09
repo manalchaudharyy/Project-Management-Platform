@@ -37,8 +37,6 @@ const createTask = async (req, res) => {
       title,
       description,
       project,
-      // A dropdown's "Unassigned" option posts an empty string, which Mongoose
-      // would otherwise try (and fail) to cast to an ObjectId.
       assignee: assignee ? assignee : undefined,
       priority,
       status,
@@ -81,25 +79,6 @@ const getTasks = async (req, res) => {
         }
       } else {
         filter.project = { $in: userProjectIds };
-      }
-
-      // Members only see tasks assigned to them, or unassigned tasks they
-      // could pick up — never tasks assigned to other members.
-      // This overrides any ?assignee= query param a member might pass.
-      delete filter.assignee;
-      filter.$and = [
-        {
-          $or: [
-            { assignee: req.user.id },
-            { assignee: null },
-            { assignee: { $exists: false } },
-          ],
-        },
-      ];
-      if (filter.$or) {
-        // the search filter above also uses $or — merge both into $and
-        filter.$and.push({ $or: filter.$or });
-        delete filter.$or;
       }
     }
 
@@ -159,17 +138,25 @@ const updateTask = async (req, res) => {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    const isAssignee = task.assignee && task.assignee.toString() === req.user.id;
     const isPmOrAdmin = req.user.role === "pm" || req.user.role === "admin";
 
-    if (!isAssignee && !isPmOrAdmin) {
-      return res.status(403).json({ message: "Forbidden: only the assignee or a PM/Admin can update this task" });
+    // Any member of the task's project can update it — not just the
+    // current assignee. PM/Admin can update any task, anywhere.
+    let isProjectMember = false;
+    if (!isPmOrAdmin) {
+      const project = await Project.findById(task.project);
+      isProjectMember =
+        !!project &&
+        (project.owner.toString() === req.user.id ||
+          project.members.some((m) => m.toString() === req.user.id));
+    }
+
+    if (!isPmOrAdmin && !isProjectMember) {
+      return res.status(403).json({ message: "Forbidden: you're not a member of this project" });
     }
 
     let { title, description, status, priority, dueDate, assignee } = req.body;
 
-    // A dropdown's "Unassigned" option posts an empty string; normalize that
-    // to null so it clears the assignee instead of failing ObjectId cast.
     if (assignee === "") {
       assignee = null;
     }
@@ -216,8 +203,11 @@ const updateTask = async (req, res) => {
       task[field] = newValue;
     };
 
-    if (req.user.role === "member") {
+       if (req.user.role === "member") {
+      // Members can change status and priority — assignee stays a
+      // PM/Admin-only call.
       applyChange("status");
+      applyChange("priority");
     } else {
       trackableFields.forEach(applyChange);
     }

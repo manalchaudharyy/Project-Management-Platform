@@ -80,6 +80,11 @@ const Kanban = () => {
   const [draggedTaskId, setDraggedTaskId] =
     useState(null);
 
+  // null/"all" = combined "Complete Project" board.
+  // "unassigned" = tasks with no assignee.
+  // otherwise a member's _id = that member's personal board.
+  const [activeView, setActiveView] = useState("all");
+
   useEffect(() => {
     const fetchBoard = async () => {
       try {
@@ -204,6 +209,60 @@ const Kanban = () => {
     };
   }, [tasks, members]);
 
+  /*
+    Which board is currently shown:
+    - "all"          -> every task on the project (shared board)
+    - "unassigned"   -> tasks nobody has picked up yet
+    - a member's _id -> only that member's assigned tasks
+  */
+  const boardTasks = useMemo(() => {
+    if (activeView === "all") return tasks;
+    if (activeView === "unassigned") {
+      return tasks.filter((task) => !task.assignee);
+    }
+    return tasks.filter(
+      (task) =>
+        task.assignee &&
+        task.assignee._id.toString() === activeView
+    );
+  }, [tasks, activeView]);
+
+  // Board tabs: "Complete Project" + one per member (+ Unassigned, if any).
+  const boardTabs = useMemo(() => {
+    const tabs = [
+      {
+        key: "all",
+        label: "Complete Project",
+        count: tasks.length,
+      },
+    ];
+
+    workload.perMember.forEach(({ member, count }) => {
+      tabs.push({
+        key: member._id.toString(),
+        label:
+          member.username || member.email || "User",
+        count: tasks.filter(
+          (task) =>
+            task.assignee &&
+            task.assignee._id.toString() ===
+              member._id.toString()
+        ).length,
+      });
+    });
+
+    if (workload.unassigned > 0) {
+      tabs.push({
+        key: "unassigned",
+        label: "Unassigned",
+        count: tasks.filter((task) => !task.assignee)
+          .length,
+      });
+    }
+
+    return tabs;
+  }, [tasks, workload]);
+
   const handleDrop = async (newStatus) => {
     if (!draggedTaskId) {
       return;
@@ -306,7 +365,7 @@ const Kanban = () => {
 
         <div className="flex items-center gap-2">
           <span className="rounded-full border border-line bg-panel px-3 py-1.5 text-xs text-ink-muted">
-            {tasks.length} tasks
+            {boardTasks.length} tasks
           </span>
 
           <Link
@@ -393,11 +452,41 @@ const Kanban = () => {
         )}
       </div>
 
+      {/* BOARD TABS: complete project vs each member's own board */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {boardTabs.map((tab) => {
+          const isActive = activeView === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveView(tab.key)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                isActive
+                  ? "border-blueprint bg-blueprint text-white"
+                  : "border-line bg-panel text-ink-muted hover:bg-paper"
+              }`}
+            >
+              {tab.label}
+              <span
+                className={`ml-1.5 rounded-md px-1.5 py-0.5 font-mono text-[10px] ${
+                  isActive
+                    ? "bg-white/20 text-white"
+                    : "bg-paper text-ink-muted"
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* KANBAN */}
       <div className="flex gap-5 overflow-x-auto pb-6">
         {COLUMNS.map((column) => {
           const columnTasks =
-            tasks.filter(
+            boardTasks.filter(
               (task) =>
                 task.status === column.key
             );

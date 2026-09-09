@@ -23,20 +23,27 @@ const ProjectDetails = () => {
   const [assignee, setAssignee] = useState("");
   const [showForm, setShowForm] = useState(false);
 
+  const [allUsers, setAllUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+
   const fetchData = async () => {
     try {
       setError("");
 
-      const [projectRes, tasksRes] =
+      const [projectRes, tasksRes, usersRes] =
         await Promise.all([
           axiosClient.get(`/projects/${id}`),
           axiosClient.get(
             `/tasks?project=${id}&limit=100`
           ),
+          axiosClient
+            .get(`/users`)
+            .catch(() => ({ data: [] })), // member role can't call this — ignore silently
         ]);
 
       setProject(projectRes.data);
       setTasks(tasksRes.data.data || []);
+      setAllUsers(usersRes.data || []);
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -105,6 +112,37 @@ const ProjectDetails = () => {
     }
   };
 
+  const handleAddMember = async (e) => {
+    e.preventDefault();
+    if (!selectedUserId) return;
+
+    try {
+      setError("");
+      const res = await axiosClient.post(`/projects/${id}/members`, {
+        userId: selectedUserId,
+      });
+      setProject(res.data);
+      setSelectedUserId("");
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not add member");
+    }
+  };
+
+  const handleRemoveMember = async (userId) => {
+    const confirmed = window.confirm("Remove this member from the project?");
+    if (!confirmed) return;
+
+    try {
+      setError("");
+      const res = await axiosClient.delete(`/projects/${id}/members`, {
+        data: { userId },
+      });
+      setProject(res.data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not remove member");
+    }
+  };
+
   if (loading) {
     return (
       <AppLayout title="Loading...">
@@ -151,6 +189,58 @@ const ProjectDetails = () => {
             View Kanban board →
           </Link>
         </div>
+      </div>
+
+      {/* MEMBERS */}
+      <div className="mb-6 rounded-lg border border-line bg-panel p-5 shadow-card">
+        <h2 className="mb-3 font-display text-lg font-semibold text-ink">
+          Team Members
+        </h2>
+
+        <div className="mb-4 flex flex-wrap gap-2">
+          {members.map((member) => (
+            <div
+              key={member._id}
+              className="flex items-center gap-2 rounded-md border border-line bg-paper px-3 py-1.5 text-sm text-ink"
+            >
+              {member.username}
+              {member._id !== project.owner?._id && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveMember(member._id)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <form onSubmit={handleAddMember} className="flex gap-2">
+          <select
+            value={selectedUserId}
+            onChange={(e) => setSelectedUserId(e.target.value)}
+            className="rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-blueprint focus:ring-2 focus:ring-blueprint/20"
+          >
+            <option value="">Select a user to add...</option>
+            {allUsers
+              .filter((u) => !members.some((m) => m._id === u._id))
+              .map((u) => (
+                <option key={u._id} value={u._id}>
+                  {u.username} ({u.role})
+                </option>
+              ))}
+          </select>
+
+          <button
+            type="submit"
+            disabled={!selectedUserId}
+            className="rounded-md bg-blueprint px-4 py-2 text-sm font-medium text-white transition hover:bg-blueprint-dark disabled:opacity-50"
+          >
+            Add Member
+          </button>
+        </form>
       </div>
 
       {error && (

@@ -5,7 +5,7 @@ import axiosClient from "../api/axiosClient";
 import { logout, setCredentials } from "../store/authSlice";
 
 // How long the user can stay inactive before we warn them.
-const IDLE_LIMIT_MS = 1 * 60 * 1000; // 5 minutes
+const IDLE_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
 // How long the warning popup stays up before we auto logout.
 const WARNING_SECONDS = 30;
 
