@@ -6,6 +6,7 @@ import TaskDetails from "./pages/TaskDetails";
 import Profile from "./pages/Profile";
 import Projects from "./pages/Projects";
 import Kanban from "./pages/Kanban";
+import Inbox from "./pages/Inbox";
 import AdminUsers from "./pages/AdminUsers";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -20,6 +21,7 @@ function App() {
         <Route path="/projects/:id/kanban" element={<ProtectedRoute><Kanban /></ProtectedRoute>} />
         <Route path="/tasks/:id" element={<ProtectedRoute><TaskDetails /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
                 <Route
           path="/admin/users"
           element={

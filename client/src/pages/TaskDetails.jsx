@@ -18,6 +18,8 @@ const TaskDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newComment, setNewComment] = useState("");
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState("");
 
   const fetchData = async () => {
     try {
@@ -74,6 +76,16 @@ const TaskDetails = () => {
     }
   };
 
+  const handleSaveDescription = async () => {
+    try {
+      const res = await axiosClient.put(`/tasks/${id}`, { description: descriptionDraft });
+      setTask(res.data);
+      setEditingDescription(false);
+    } catch (err) {
+      setError("Could not update description");
+    }
+  };
+
   const handleAddComment = async (e) => {
     e.preventDefault();
     try {
@@ -105,7 +117,60 @@ const TaskDetails = () => {
   return (
     <AppLayout title={task.title}>
       <div className="mb-6 rounded-lg border border-line bg-panel p-5">
-        {task.description && <p className="text-sm text-ink-muted mb-4">{task.description}</p>}
+        <div className="mb-4 rounded-md border border-line bg-paper p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+              Description
+            </h3>
+            {canReassign && !editingDescription && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDescriptionDraft(task.description || "");
+                  setEditingDescription(true);
+                }}
+                className="rounded-md px-2 py-1 text-xs font-medium text-blueprint hover:bg-blueprint/10 transition-colors"
+              >
+                {task.description ? "Edit" : "Add description"}
+              </button>
+            )}
+          </div>
+
+          {editingDescription ? (
+            <div>
+              <textarea
+                value={descriptionDraft}
+                onChange={(e) => setDescriptionDraft(e.target.value)}
+                rows={4}
+                autoFocus
+                placeholder="Describe what needs to be done…"
+                className="w-full rounded-md border border-line bg-panel px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors resize-y"
+              />
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveDescription}
+                  className="rounded-md bg-blueprint px-3 py-1.5 text-xs font-medium text-white hover:bg-blueprint-dark transition-colors"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingDescription(false)}
+                  className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-ink-muted hover:bg-panel transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : task.description ? (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">
+              {task.description}
+            </p>
+          ) : (
+            <p className="text-sm italic text-ink-muted/70">No description yet.</p>
+          )}
+        </div>
 
         {error && <p className="mb-4 text-sm text-priority-critical">{error}</p>}
 

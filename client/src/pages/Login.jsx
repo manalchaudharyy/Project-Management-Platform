@@ -49,11 +49,11 @@ const Login = () => {
 
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blueprint font-bold">
-            L
+            V
           </div>
 
           <span className="text-xl font-bold">
-            Loom
+            Voxel
           </span>
         </div>
 
@@ -76,7 +76,7 @@ const Login = () => {
         </div>
 
         <p className="text-sm text-white/40">
-          © 2026 Loom Workspace
+          © 2026 Voxel Workspace
         </p>
 
       </div>
@@ -91,7 +91,7 @@ const Login = () => {
         <div className="mb-10">
 
           <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-blueprint text-xl font-bold text-white shadow-lg shadow-blueprint/30 lg:hidden">
-            L
+            V
           </div>
 
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">
@@ -153,7 +153,7 @@ const Login = () => {
             type="submit"
             className="w-full rounded-xl bg-blueprint py-3.5 text-sm font-semibold text-white shadow-lg shadow-blueprint/20 transition hover:bg-blueprint-dark hover:shadow-xl"
           >
-            Sign in to Loom →
+            Sign in to Voxel →
           </button>
 
         </form>

@@ -528,15 +528,9 @@ const deleteProject = async (req, res) => {
 /* =========================================================
    PROJECT DASHBOARD
 ========================================================= */
-
-const getProjectDashboard = async (
-  req,
-  res
-) => {
+const getProjectDashboard = async (req, res) => {
   try {
-    const project = await Project.findById(
-      req.params.id
-    );
+    const project = await Project.findById(req.params.id);
 
     if (!project) {
       return res.status(404).json({
@@ -544,146 +538,197 @@ const getProjectDashboard = async (
       });
     }
 
-    const isOwner =
-      project.owner.toString() === req.user.id;
+    const isOwner = project.owner.toString() === req.user.id;
 
     const isMember = project.members.some(
-      (member) =>
-        member.toString() === req.user.id
+      (member) => member.toString() === req.user.id
     );
 
-    const isAdmin =
-      req.user.role === "admin";
+    const isAdmin = req.user.role === "admin";
 
-    if (
-      !isOwner &&
-      !isMember &&
-      !isAdmin
-    ) {
+    if (!isOwner && !isMember && !isAdmin) {
       return res.status(403).json({
-        message:
-          "Forbidden: you don't have access to this project",
+        message: "Forbidden: you don't have access to this project",
       });
     }
 
-    const projectId =
-      new mongoose.Types.ObjectId(
-        req.params.id
-      );
+    const projectId = new mongoose.Types.ObjectId(req.params.id);
 
-    const [result] =
-      await Task.aggregate([
-        {
-          $match: {
-            project: projectId,
-          },
+    const [result] = await Task.aggregate([
+      {
+        $match: {
+          project: projectId,
         },
+      },
+      {
+        $facet: {
+          byStatus: [
+            {
+              $group: { _id: "$status", count: { $sum: 1 } },
+            },
+          ],
 
-        {
-          $facet: {
-            byStatus: [
-              {
-                $group: {
-                  _id: "$status",
-                  count: {
-                    $sum: 1,
-                  },
+          byPriority: [
+            {
+              $group: { _id: "$priority", count: { $sum: 1 } },
+            },
+          ],
+
+          overdue: [
+            {
+              $match: {
+                dueDate: { $lt: new Date() },
+                status: { $ne: "done" },
+              },
+            },
+            { $count: "count" },
+          ],
+
+          total: [{ $count: "count" }],
+
+          // Tasks grouped by assignee, with the username resolved
+          byAssignee: [
+            {
+              $group: {
+                _id: "$assignee",
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $lookup: {
+                from: "users",
+                localField: "_id",
+                foreignField: "_id",
+                as: "user",
+              },
+            },
+            {
+              $project: {
+                name: {
+                  $ifNull: [
+                    { $arrayElemAt: ["$user.username", 0] },
+                    "Unassigned",
+                  ],
+                },
+                count: 1,
+              },
+            },
+          ],
+
+          // How many tasks were created on each of the last 14 days
+          createdDaily: [
+            {
+              $match: {
+                createdAt: {
+                  $gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
                 },
               },
-            ],
+            },
+            {
+              $group: {
+                _id: {
+                  $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+                },
+                count: { $sum: 1 },
+              },
+            },
+          ],
 
-            byPriority: [
-              {
-                $group: {
-                  _id: "$priority",
-                  count: {
-                    $sum: 1,
-                  },
+          // How many tasks were last touched (approx = completed) on each of the last 14 days, while done
+          doneDaily: [
+            {
+              $match: {
+                status: "done",
+                updatedAt: {
+                  $gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
                 },
               },
-            ],
-
-            overdue: [
-              {
-                $match: {
-                  dueDate: {
-                    $lt: new Date(),
-                  },
-                  status: {
-                    $ne: "done",
-                  },
+            },
+            {
+              $group: {
+                _id: {
+                  $dateToString: { format: "%Y-%m-%d", date: "$updatedAt" },
                 },
+                count: { $sum: 1 },
               },
-
-              {
-                $count: "count",
-              },
-            ],
-
-            total: [
-              {
-                $count: "count",
-              },
-            ],
-          },
+            },
+          ],
         },
-      ]);
+      },
+    ]);
 
     const toCountMap = (arr) =>
-      arr.reduce(
-        (acc, { _id, count }) => {
-          acc[_id || "unset"] = count;
-          return acc;
-        },
-        {}
-      );
+      arr.reduce((acc, { _id, count }) => {
+        acc[_id || "unset"] = count;
+        return acc;
+      }, {});
 
-    const total =
-      result.total[0]?.count || 0;
+    const total = result.total[0]?.count || 0;
 
-    const byStatus =
-      toCountMap(result.byStatus);
+    const byStatus = toCountMap(result.byStatus);
 
-    const completed =
-      byStatus.done || 0;
+    const completed = byStatus.done || 0;
+
+    // Build a 14-day cumulative trend for the "task completion over time" chart
+    const dayKey = (d) => d.toISOString().slice(0, 10);
+
+    const createdMap = toCountMap(
+      result.createdDaily.map((r) => ({ _id: r._id, count: r.count }))
+    );
+    const doneMap = toCountMap(
+      result.doneDaily.map((r) => ({ _id: r._id, count: r.count }))
+    );
+
+    let runningCreated = 0;
+    let runningDone = 0;
+    const completionTrend = [];
+
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const key = dayKey(d);
+      runningCreated += createdMap[key] || 0;
+      runningDone += doneMap[key] || 0;
+      completionTrend.push({
+        date: key.slice(5), // MM-DD, shorter for the x-axis
+        complete: runningDone,
+        incomplete: Math.max(runningCreated - runningDone, 0),
+      });
+    }
+
+    const tasksByAssignee = result.byAssignee.map((a) => ({
+      name: a.name,
+      count: a.count,
+    }));
 
     res.status(200).json({
       totalTasks: total,
 
       completedTasks: completed,
 
-      pendingTasks:
-        total - completed,
+      pendingTasks: total - completed,
 
-      overdueTasks:
-        result.overdue[0]?.count || 0,
+      overdueTasks: result.overdue[0]?.count || 0,
 
       tasksByStatus: byStatus,
 
-      tasksByPriority:
-        toCountMap(
-          result.byPriority
-        ),
+      tasksByPriority: toCountMap(result.byPriority),
 
       completionPercentage:
-        total > 0
-          ? Math.round(
-              (completed / total) * 100
-            )
-          : 0,
+        total > 0 ? Math.round((completed / total) * 100) : 0,
+
+      tasksByAssignee,
+
+      completionTrend,
     });
   } catch (error) {
-    console.error(
-      "Project dashboard error:",
-      error.message
-    );
+    console.error("Project dashboard error:", error.message);
 
     res.status(500).json({
-      message:
-        "Server error fetching project dashboard",
+      message: "Server error fetching project dashboard",
     });
   }
 };
+
 
 module.exports = {
   createProject,

@@ -1,5 +1,6 @@
 import { useSelector } from "react-redux";
 import { Navigate } from "react-router-dom";
+import SessionTimeoutModal from "./SessionTimeoutModal";
 
 const ProtectedRoute = ({ children, roles }) => {
   const { token, user } = useSelector((state) => state.auth);
@@ -12,7 +13,12 @@ const ProtectedRoute = ({ children, roles }) => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return children;
+  return (
+    <>
+      {children}
+      <SessionTimeoutModal />
+    </>
+  );
 };
 
 export default ProtectedRoute;

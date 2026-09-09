@@ -19,6 +19,7 @@ const ProjectDetails = () => {
   const [error, setError] = useState("");
 
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [assignee, setAssignee] = useState("");
   const [showForm, setShowForm] = useState(false);
 
@@ -58,11 +59,13 @@ const ProjectDetails = () => {
 
       await axiosClient.post("/tasks", {
         title: title.trim(),
+        description: description.trim(),
         project: id,
         assignee: assignee || undefined,
       });
 
       setTitle("");
+      setDescription("");
       setAssignee("");
       setShowForm(false);
 
@@ -192,6 +195,16 @@ const ProjectDetails = () => {
             }
             required
             className="min-w-48 flex-1 rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-blueprint focus:ring-2 focus:ring-blueprint/20"
+          />
+
+          <textarea
+            placeholder="Task description (optional)"
+            value={description}
+            onChange={(e) =>
+              setDescription(e.target.value)
+            }
+            rows={2}
+            className="w-full min-w-48 flex-1 rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-blueprint focus:ring-2 focus:ring-blueprint/20"
           />
 
           <select
