@@ -94,30 +94,18 @@ const createProject = async (req, res) => {
 
 const getProjects = async (req, res) => {
   try {
-    const projects = await Project.find({
-      $or: [
-        {
-          owner: req.user.id,
-        },
-        {
-          members: req.user.id,
-        },
-      ],
-    });
+    const query =
+      req.user.role === "admin"
+        ? {} // admin sees every project — full oversight
+        : { $or: [{ owner: req.user.id }, { members: req.user.id }] };
 
+    const projects = await Project.find(query);
     res.status(200).json(projects);
   } catch (error) {
-    console.error(
-      "Get projects error:",
-      error.message
-    );
-
-    res.status(500).json({
-      message: "Server error fetching projects",
-    });
+    console.error("Get projects error:", error.message);
+    res.status(500).json({ message: "Server error fetching projects" });
   }
 };
-
 /* =========================================================
    GET PROJECT BY ID
 ========================================================= */

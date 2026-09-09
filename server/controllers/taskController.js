@@ -56,6 +56,7 @@ const createTask = async (req, res) => {
     res.status(500).json({ message: "Server error creating task" });
   }
 };
+
 const getTasks = async (req, res) => {
   try {
     const filter = {};
@@ -80,6 +81,25 @@ const getTasks = async (req, res) => {
         }
       } else {
         filter.project = { $in: userProjectIds };
+      }
+
+      // Members only see tasks assigned to them, or unassigned tasks they
+      // could pick up — never tasks assigned to other members.
+      // This overrides any ?assignee= query param a member might pass.
+      delete filter.assignee;
+      filter.$and = [
+        {
+          $or: [
+            { assignee: req.user.id },
+            { assignee: null },
+            { assignee: { $exists: false } },
+          ],
+        },
+      ];
+      if (filter.$or) {
+        // the search filter above also uses $or — merge both into $and
+        filter.$and.push({ $or: filter.$or });
+        delete filter.$or;
       }
     }
 
@@ -114,6 +134,7 @@ const getTasks = async (req, res) => {
     res.status(500).json({ message: "Server error fetching tasks" });
   }
 };
+
 const getTaskById = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id).populate({
@@ -129,6 +150,7 @@ const getTaskById = async (req, res) => {
     res.status(500).json({ message: "Server error fetching task" });
   }
 };
+
 const updateTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
