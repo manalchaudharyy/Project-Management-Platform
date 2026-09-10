@@ -100,7 +100,7 @@ GROQ_API_KEY=your_groq_api_key
 
 Start the backend:
 ```bash
-node server/server.js
+npm start
 ```
 The API will run on `http://localhost:5000`.
 
