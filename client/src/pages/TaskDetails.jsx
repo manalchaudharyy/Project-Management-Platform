@@ -18,6 +18,8 @@ const TaskDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newComment, setNewComment] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editCommentDraft, setEditCommentDraft] = useState("");
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState("");
 
@@ -97,6 +99,38 @@ const TaskDetails = () => {
       setComments(res.data);
     } catch (err) {
       setError("Could not add comment");
+    }
+  };
+
+  const startEditComment = (comment) => {
+    setEditingCommentId(comment._id);
+    setEditCommentDraft(comment.content);
+  };
+
+  const cancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditCommentDraft("");
+  };
+
+  const handleUpdateComment = async (commentId) => {
+    if (!editCommentDraft.trim()) return;
+    try {
+      await axiosClient.put(`/comments/${commentId}`, { content: editCommentDraft });
+      const res = await axiosClient.get(`/tasks/${id}/comments`);
+      setComments(res.data);
+      cancelEditComment();
+    } catch (err) {
+      setError("Could not update comment");
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm("Delete this comment?")) return;
+    try {
+      await axiosClient.delete(`/comments/${commentId}`);
+      setComments((prev) => prev.filter((c) => c._id !== commentId));
+    } catch (err) {
+      setError("Could not delete comment");
     }
   };
 
@@ -223,7 +257,6 @@ const TaskDetails = () => {
       <TaskBreakdown taskId={task._id} projectId={task.project} />
 
 <h2 className="font-display text-lg font-semibold text-ink mb-4">Comments</h2>
-      <h2 className="font-display text-lg font-semibold text-ink mb-4">Comments</h2>
 
       <form onSubmit={handleAddComment} className="mb-5 flex gap-3">
         <input
@@ -246,11 +279,63 @@ const TaskDetails = () => {
         <p className="text-sm text-ink-muted">No comments yet.</p>
       ) : (
         <div className="rounded-lg border border-line bg-panel divide-y divide-line">
-          {comments.map((comment) => (
-            <div key={comment._id} className="px-5 py-3">
-              <p className="text-sm text-ink">{comment.content}</p>
-            </div>
-          ))}
+          {comments.map((comment) => {
+            const isOwn = comment.author?._id === currentUser?.id;
+            const isEditing = editingCommentId === comment._id;
+
+            return (
+              <div key={comment._id} className="px-5 py-3">
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <p className="text-xs font-mono text-ink-muted">
+                    {comment.author?.username || "Unknown"} ·{" "}
+                    {new Date(comment.createdAt).toLocaleString()}
+                    {comment.updatedAt !== comment.createdAt && " (edited)"}
+                  </p>
+                  {isOwn && !isEditing && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startEditComment(comment)}
+                        className="text-xs font-medium text-blueprint hover:text-marker"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteComment(comment._id)}
+                        className="text-xs font-medium text-priority-critical hover:opacity-80"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {isEditing ? (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={editCommentDraft}
+                      onChange={(e) => setEditCommentDraft(e.target.value)}
+                      className="flex-1 rounded-md border border-line bg-paper px-3 py-1.5 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors"
+                    />
+                    <button
+                      onClick={() => handleUpdateComment(comment._id)}
+                      className="rounded-md bg-blueprint px-3 py-1.5 text-xs font-medium text-white hover:bg-blueprint-dark transition-colors"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={cancelEditComment}
+                      className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-ink hover:bg-paper transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-ink">{comment.content}</p>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </AppLayout>

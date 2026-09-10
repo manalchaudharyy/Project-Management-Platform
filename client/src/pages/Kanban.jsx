@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 
 import axiosClient from "../api/axiosClient";
+import { getSocket } from "../api/socket";
 import AppLayout from "../components/AppLayout";
 import { PriorityBadge } from "../components/Badge";
 
@@ -151,6 +152,57 @@ const Kanban = () => {
     };
 
     fetchBoard();
+  }, [projectId]);
+
+  /*
+    LIVE BOARD UPDATES
+
+    While this board is open, join a Socket.io room for this project.
+    Any teammate creating, moving, or deleting a task on the same
+    project pushes an event here, and we patch local state directly —
+    no refresh needed on either side.
+  */
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const socket = getSocket(token);
+    if (!socket || !projectId) return;
+
+    socket.emit("joinProject", projectId);
+
+    const handleTaskCreated = (newTask) => {
+      setTasks((current) =>
+        current.some((t) => t._id === newTask._id)
+          ? current
+          : [...current, newTask]
+      );
+    };
+
+    const handleTaskUpdated = (updatedTask) => {
+      setTasks((current) =>
+        current.some((t) => t._id === updatedTask._id)
+          ? current.map((t) =>
+              t._id === updatedTask._id ? updatedTask : t
+            )
+          : [...current, updatedTask]
+      );
+    };
+
+    const handleTaskDeleted = ({ taskId }) => {
+      setTasks((current) =>
+        current.filter((t) => t._id !== taskId)
+      );
+    };
+
+    socket.on("taskCreated", handleTaskCreated);
+    socket.on("taskUpdated", handleTaskUpdated);
+    socket.on("taskDeleted", handleTaskDeleted);
+
+    return () => {
+      socket.emit("leaveProject", projectId);
+      socket.off("taskCreated", handleTaskCreated);
+      socket.off("taskUpdated", handleTaskUpdated);
+      socket.off("taskDeleted", handleTaskDeleted);
+    };
   }, [projectId]);
 
   /*
