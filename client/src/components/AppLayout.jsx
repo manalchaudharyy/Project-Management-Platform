@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../store/authSlice";
@@ -16,6 +16,14 @@ const navItems = [
 const AppLayout = ({ title, children }) => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Top-bar search: term, results dropdown, and loading state.
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchBoxRef = useRef(null);
+  const searchDebounceRef = useRef(null);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -52,6 +60,60 @@ const AppLayout = ({ title, children }) => {
     return () => socket.off("message:new", handleNewMessage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Close the search dropdown on outside click.
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Debounced live search against /api/search?term=...
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    const term = searchTerm.trim();
+    if (!term) {
+      setSearchResults(null);
+      setSearchLoading(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await axiosClient.get("/search", { params: { term } });
+        setSearchResults(res.data);
+      } catch {
+        setSearchResults({ projects: [], tasks: [] });
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(searchDebounceRef.current);
+  }, [searchTerm]);
+
+  const handleSelectProject = (id) => {
+    setSearchOpen(false);
+    setSearchTerm("");
+    setSearchResults(null);
+    navigate(`/projects/${id}`);
+  };
+
+  const handleSelectTask = (id) => {
+    setSearchOpen(false);
+    setSearchTerm("");
+    setSearchResults(null);
+    navigate(`/tasks/${id}`);
+  };
+
+  const hasResults =
+    searchResults && (searchResults.projects?.length > 0 || searchResults.tasks?.length > 0);
 
   const items = navItems.concat(
     ["admin", "pm"].includes(user?.role)
@@ -194,19 +256,83 @@ const AppLayout = ({ title, children }) => {
 
           <div className="flex-1" />
 
-          <div className="hidden w-52 lg:block">
+          {/* SEARCH — live search against projects + tasks the user has access to */}
+          <div className="relative hidden w-72 lg:block" ref={searchBoxRef}>
             <div className="flex items-center gap-2 rounded-lg border border-line bg-paper px-3 py-1.5">
               <span className="text-ink-muted">⌕</span>
               <input
-                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setSearchOpen(true);
+                }}
+                onFocus={() => searchTerm && setSearchOpen(true)}
+                placeholder="Search projects & tasks..."
                 className="w-full bg-transparent text-sm outline-none placeholder:text-ink-muted"
               />
             </div>
+
+            {searchOpen && searchTerm.trim() && (
+              <div className="absolute right-0 top-full z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-lg border border-line bg-white shadow-panel">
+                {searchLoading && (
+                  <p className="px-4 py-4 text-center text-sm text-ink-muted">Searching...</p>
+                )}
+
+                {!searchLoading && !hasResults && (
+                  <p className="px-4 py-4 text-center text-sm text-ink-muted">
+                    No matches for "{searchTerm.trim()}"
+                  </p>
+                )}
+
+                {!searchLoading && searchResults?.projects?.length > 0 && (
+                  <div className="border-b border-line">
+                    <p className="px-4 pt-3 pb-1 font-mono text-[10px] uppercase tracking-widest text-ink-muted">
+                      Projects
+                    </p>
+                    {searchResults.projects.map((p) => (
+                      <button
+                        key={p._id}
+                        onClick={() => handleSelectProject(p._id)}
+                        className="block w-full px-4 py-2 text-left text-sm text-ink transition hover:bg-paper"
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {!searchLoading && searchResults?.tasks?.length > 0 && (
+                  <div>
+                    <p className="px-4 pt-3 pb-1 font-mono text-[10px] uppercase tracking-widest text-ink-muted">
+                      Tasks
+                    </p>
+                    {searchResults.tasks.map((t) => (
+                      <button
+                        key={t._id}
+                        onClick={() => handleSelectTask(t._id)}
+                        className="block w-full px-4 py-2 text-left text-sm text-ink transition hover:bg-paper"
+                      >
+                        {t.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <button className="relative rounded-md p-2 text-ink-muted transition hover:bg-paper">
+          {/* BELL — mirrors the Inbox unread count; click jumps to Inbox */}
+          <button
+            onClick={() => navigate("/inbox")}
+            className="relative rounded-md p-2 text-ink-muted transition hover:bg-paper"
+            title={unreadCount > 0 ? `${unreadCount} unread message(s)` : "No new notifications"}
+          >
             ♧
-            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-marker" />
+            {unreadCount > 0 && (
+              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-marker px-1 text-[9px] font-bold text-white">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </button>
 
           <div className="relative">

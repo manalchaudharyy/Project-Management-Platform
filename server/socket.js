@@ -1,5 +1,6 @@
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
+const BlacklistedToken = require("./models/BlacklistedToken");
 
 let io = null;
 
@@ -19,12 +20,18 @@ const initSocket = (httpServer) => {
 
   // Authenticate the socket the same way REST routes do — a JWT, but passed
   // via the handshake instead of an Authorization header.
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
       if (!token) return next(new Error("Not authorized, no token provided"));
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      if (decoded.jti) {
+        const revoked = await BlacklistedToken.findOne({ jti: decoded.jti });
+        if (revoked) return next(new Error("Not authorized, token has been revoked"));
+      }
+
       socket.userId = decoded.id;
       next();
     } catch (error) {

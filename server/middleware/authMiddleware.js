@@ -1,7 +1,10 @@
 const jwt = require("jsonwebtoken");
+const BlacklistedToken = require("../models/BlacklistedToken");
 
-// Protects routes - checks for a valid JWT in the Authorization header
-const protect = (req, res, next) => {
+// Protects routes - checks for a valid JWT in the Authorization header,
+// and that it hasn't been explicitly revoked (logged out) before its
+// natural expiry.
+const protect = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -12,7 +15,17 @@ const protect = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { id, role, iat, exp }
+
+    // Older tokens issued before this change won't have a jti — treat
+    // those as always valid (they'll simply expire naturally in 7 days).
+    if (decoded.jti) {
+      const revoked = await BlacklistedToken.findOne({ jti: decoded.jti });
+      if (revoked) {
+        return res.status(401).json({ message: "Not authorized, token has been revoked" });
+      }
+    }
+
+    req.user = decoded; // { id, role, jti, iat, exp }
     next();
   } catch (error) {
     return res.status(401).json({ message: "Not authorized, token failed or expired" });

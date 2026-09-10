@@ -1,9 +1,14 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const User = require("../models/User");
+const BlacklistedToken = require("../models/BlacklistedToken");
 
+// Every token gets a unique `jti` (JWT ID). This is what lets us revoke
+// ONE specific token on logout, instead of invalidating every token a user
+// has ever been issued (which would log them out of every device/tab).
 const generateToken = (userId, role) => {
-  return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
+  return jwt.sign({ id: userId, role, jti: crypto.randomUUID() }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
 };
@@ -106,9 +111,27 @@ const getMe = async (req, res) => {
   }
 };
 
-// POST /api/auth/logout
+// POST /api/auth/logout (protected)
+// Actually revokes the current token by recording its jti as blacklisted,
+// so it can no longer be used even though it hasn't naturally expired yet.
 const logout = async (req, res) => {
-  res.status(200).json({ message: "Logged out successfully" });
+  try {
+    const { jti, exp } = req.user; // set by protect() from the decoded JWT
+
+    if (jti && exp) {
+      // exp is in seconds (JWT standard) — convert to a JS Date for expiresAt
+      await BlacklistedToken.create({ jti, expiresAt: new Date(exp * 1000) });
+    }
+
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    // If the jti is already blacklisted (e.g. double logout call), that's fine.
+    if (error.code === 11000) {
+      return res.status(200).json({ message: "Logged out successfully" });
+    }
+    console.error("Logout error:", error.message);
+    res.status(500).json({ message: "Server error during logout" });
+  }
 };
 
 // POST /api/auth/refresh (protected) — issues a fresh token for the
