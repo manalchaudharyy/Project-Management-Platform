@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import axiosClient from "../api/axiosClient";
 import AppLayout from "../components/AppLayout";
-
+import TaskBreakdown from "../components/TaskBreakdown";
 const selectClasses =
   "rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors";
 
@@ -220,7 +220,9 @@ const TaskDetails = () => {
           </div>
         </div>
       </div>
+      <TaskBreakdown taskId={task._id} projectId={task.project} />
 
+<h2 className="font-display text-lg font-semibold text-ink mb-4">Comments</h2>
       <h2 className="font-display text-lg font-semibold text-ink mb-4">Comments</h2>
 
       <form onSubmit={handleAddComment} className="mb-5 flex gap-3">

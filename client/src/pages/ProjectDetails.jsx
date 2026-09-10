@@ -7,7 +7,7 @@ import {
   PriorityBadge,
 } from "../components/Badge";
 import AIAssistant from "../components/AIAssistant";
-
+import AISummary from "../components/AISummary";
 const ProjectDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -248,7 +248,7 @@ const ProjectDetails = () => {
           {error}
         </div>
       )}
-
+      <AISummary projectId={id} />
       <AIAssistant
         projectId={id}
         onTasksAdded={fetchData}
