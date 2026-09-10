@@ -128,4 +128,60 @@ Completion percentage: ${stats.completionPercent}%`;
   return callGroqForText(SUMMARY_SYSTEM_PROMPT, userPrompt);
 }
 
-module.exports = { generateTasksFromPrompt, breakdownTask, generateSummary };
+// New: risk detection — parses a JSON object (not an array) with risks + suggested actions
+async function callGroqForJSONObject(systemPrompt, userPrompt) {
+  const response = await axios.post(
+    GROQ_URL,
+    {
+      model: MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.4,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  const rawText = response.data.choices[0].message.content;
+  const cleanedText = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+
+  let parsed;
+  try {
+    parsed = JSON.parse(cleanedText);
+  } catch (err) {
+    throw new Error("AI returned text that wasn't valid JSON: " + rawText);
+  }
+
+  return parsed;
+}
+
+const RISK_SYSTEM_PROMPT = `You are a project management assistant analyzing risk.
+Given data about a project's overdue tasks, high-priority tasks, deadlines, and task load per assignee, identify potential risks and suggest actions.
+
+Respond with ONLY valid JSON, no other text, no markdown code fences.
+The JSON must be an object with exactly these fields:
+- risks (array of short strings, each describing one concrete risk, e.g. "3 high-priority tasks are still incomplete")
+- suggestedActions (array of short strings, each a concrete suggested action, e.g. "Reassign two tasks from the overloaded developer")
+
+Generate 2-5 risks and 1-4 suggested actions. If there are no notable risks, return empty arrays. Return ONLY the JSON object, nothing else.`;
+
+async function generateRiskAnalysis(riskData) {
+  const userPrompt = `Project risk data:
+Total tasks: ${riskData.total}
+Completion: ${riskData.completionPercent}%
+Overdue tasks: ${riskData.overdue} ${riskData.overdueTitles.length ? `(${riskData.overdueTitles.join(", ")})` : ""}
+High priority tasks remaining: ${riskData.highPriorityRemaining}
+Critical priority tasks remaining: ${riskData.criticalPriorityRemaining}
+Task load per assignee: ${riskData.loadByAssignee.map((a) => `${a.name}: ${a.count} open tasks`).join("; ") || "none"}
+Tasks due in the next 3 days: ${riskData.upcomingDeadlines}`;
+
+  return callGroqForJSONObject(RISK_SYSTEM_PROMPT, userPrompt);
+}
+
+module.exports = { generateTasksFromPrompt, breakdownTask, generateSummary, generateRiskAnalysis };

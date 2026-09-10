@@ -1,5 +1,10 @@
 const Task = require("../models/Task");
-const { generateTasksFromPrompt, breakdownTask, generateSummary } = require("../services/aiService");
+const {
+  generateTasksFromPrompt,
+  breakdownTask,
+  generateSummary,
+  generateRiskAnalysis,
+} = require("../services/aiService");
 
 const generateTasks = async (req, res) => {
   try {
@@ -81,4 +86,61 @@ const getProjectSummary = async (req, res) => {
   }
 };
 
-module.exports = { generateTasks, breakdownExistingTask, getProjectSummary };
+// New: analyzes overdue/high-priority/upcoming-deadline tasks and assignee
+// load, then asks the AI to flag risks and suggest actions.
+const getProjectRisks = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const tasks = await Task.find({ project: projectId })
+      .populate("assignee", "username");
+
+    const openTasks = tasks.filter((t) => t.status !== "done");
+    const total = tasks.length;
+    const completed = tasks.length - openTasks.length;
+    const completionPercent = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+    const now = new Date();
+    const overdueTasks = openTasks.filter((t) => t.dueDate && new Date(t.dueDate) < now);
+
+    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const upcomingDeadlines = openTasks.filter(
+      (t) => t.dueDate && new Date(t.dueDate) >= now && new Date(t.dueDate) <= threeDaysFromNow
+    ).length;
+
+    const highPriorityRemaining = openTasks.filter((t) => t.priority === "high").length;
+    const criticalPriorityRemaining = openTasks.filter((t) => t.priority === "critical").length;
+
+    // Count open tasks per assignee, to flag anyone overloaded
+    const loadMap = {};
+    openTasks.forEach((t) => {
+      const name = t.assignee?.username || "Unassigned";
+      loadMap[name] = (loadMap[name] || 0) + 1;
+    });
+    const loadByAssignee = Object.entries(loadMap).map(([name, count]) => ({ name, count }));
+
+    const riskData = {
+      total,
+      completionPercent,
+      overdue: overdueTasks.length,
+      overdueTitles: overdueTasks.slice(0, 5).map((t) => t.title),
+      highPriorityRemaining,
+      criticalPriorityRemaining,
+      loadByAssignee,
+      upcomingDeadlines,
+    };
+
+    const analysis = await generateRiskAnalysis(riskData);
+
+    res.status(200).json({
+      risks: analysis.risks || [],
+      suggestedActions: analysis.suggestedActions || [],
+      riskData,
+    });
+  } catch (error) {
+    console.error("AI risk detection error:", error.message);
+    res.status(500).json({ message: "Failed to analyze risks", error: error.message });
+  }
+};
+
+module.exports = { generateTasks, breakdownExistingTask, getProjectSummary, getProjectRisks };

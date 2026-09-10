@@ -8,6 +8,7 @@ import {
 } from "../components/Badge";
 import AIAssistant from "../components/AIAssistant";
 import AISummary from "../components/AISummary";
+import AIRiskDetection from "../components/AIRiskDetection";
 const ProjectDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -249,6 +250,7 @@ const ProjectDetails = () => {
         </div>
       )}
       <AISummary projectId={id} />
+      <AIRiskDetection projectId={id} />
       <AIAssistant
         projectId={id}
         onTasksAdded={fetchData}
@@ -315,6 +317,8 @@ const ProjectDetails = () => {
               </option>
             ))}
           </select>
+          
+
 
           <button
             type="submit"
