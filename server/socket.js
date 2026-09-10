@@ -7,6 +7,11 @@ let io = null;
 // To push something to a specific user in real time, emit to `user:${userId}`.
 const userRoom = (userId) => `user:${userId}`;
 
+// Every client viewing a project's Kanban board joins a room named after
+// that project. To push a live board update to everyone looking at it,
+// emit to `project:${projectId}`.
+const projectRoom = (projectId) => `project:${projectId}`;
+
 const initSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: { origin: "*" },
@@ -39,6 +44,18 @@ const initSocket = (httpServer) => {
         isTyping: !!isTyping,
       });
     });
+
+    // Kanban board: client asks to "watch" a project's live updates while
+    // that board is open, and stops watching when it leaves the page.
+    socket.on("joinProject", (projectId) => {
+      if (!projectId) return;
+      socket.join(projectRoom(projectId));
+    });
+
+    socket.on("leaveProject", (projectId) => {
+      if (!projectId) return;
+      socket.leave(projectRoom(projectId));
+    });
   });
 
   return io;
@@ -49,4 +66,12 @@ const getIO = () => {
   return io;
 };
 
-module.exports = { initSocket, getIO, userRoom };
+// Broadcasts a task change to everyone currently viewing that project's
+// board. Safe to call even before a socket has connected — it's a no-op
+// until io is initialized.
+const emitToProject = (projectId, event, payload) => {
+  if (!io || !projectId) return;
+  io.to(projectRoom(projectId)).emit(event, payload);
+};
+
+module.exports = { initSocket, getIO, userRoom, projectRoom, emitToProject };

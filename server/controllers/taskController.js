@@ -1,5 +1,6 @@
 const Task = require("../models/Task");
 const Project = require("../models/Project");
+const { emitToProject } = require("../socket");
 
 const TASK_STATUS_VALUES = ["todo", "in-progress", "review", "done"];
 const TASK_PRIORITY_VALUES = ["low", "medium", "high", "critical"];
@@ -44,6 +45,10 @@ const createTask = async (req, res) => {
     });
 
     await task.populate({ path: "assignee", select: "username email" });
+
+    // Live board update: everyone else looking at this project's Kanban
+    // board sees the new task appear without refreshing.
+    emitToProject(task.project.toString(), "taskCreated", task);
 
     res.status(201).json(task);
   } catch (error) {
@@ -218,6 +223,11 @@ const updateTask = async (req, res) => {
 
     const updatedTask = await task.save();
     await updatedTask.populate({ path: "assignee", select: "username email" });
+
+    // Live board update: everyone else looking at this project's Kanban
+    // board sees the moved/edited task without refreshing.
+    emitToProject(updatedTask.project.toString(), "taskUpdated", updatedTask);
+
     res.status(200).json(updatedTask);
   } catch (error) {
     if (error.name === "ValidationError") {
@@ -242,7 +252,15 @@ const deleteTask = async (req, res) => {
       return res.status(403).json({ message: "Forbidden: only a PM/Admin can delete this task" });
     }
 
+    const projectId = task.project.toString();
+    const taskId = task._id.toString();
+
     await task.deleteOne();
+
+    // Live board update: everyone else looking at this project's Kanban
+    // board sees the task disappear without refreshing.
+    emitToProject(projectId, "taskDeleted", { taskId });
+
     res.status(200).json({ message: "Task deleted" });
   } catch (error) {
     console.error("Delete task error:", error.message);
