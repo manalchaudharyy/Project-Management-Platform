@@ -64,7 +64,7 @@ const Login = () => {
           </p>
 
           <h1 className="text-5xl font-bold leading-tight">
-            Turn your team's
+            Turn your 
             <span className="text-amber-400"> ideas into reality.</span>
           </h1>
 
