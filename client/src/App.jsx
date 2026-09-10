@@ -9,7 +9,8 @@ import Kanban from "./pages/Kanban";
 import Inbox from "./pages/Inbox";
 import AdminUsers from "./pages/AdminUsers";
 import ProtectedRoute from "./components/ProtectedRoute";
-
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 function App() {
   return (
     <BrowserRouter>
@@ -22,6 +23,8 @@ function App() {
         <Route path="/tasks/:id" element={<ProtectedRoute><TaskDetails /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />      
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
                 <Route
           path="/admin/users"
           element={

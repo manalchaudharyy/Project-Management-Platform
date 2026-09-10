@@ -1,16 +1,13 @@
 const express = require("express");
 const router = express.Router();
-const {
-  generateTasks,
-  breakdownExistingTask,
-  getProjectSummary,
-  getProjectRisks,
-} = require("../controllers/aiController");
+const { login, getMe, logout, refresh, forgotPassword, resetPassword } = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
 
-router.post("/:projectId/ai/generate-tasks", protect, generateTasks);
-router.post("/:id/ai/breakdown", protect, breakdownExistingTask);
-router.get("/:projectId/ai/summary", protect, getProjectSummary);
-router.get("/:projectId/ai/risks", protect, getProjectRisks);
+router.post("/login", login);
+router.get("/me", protect, getMe);
+router.post("/logout", protect, logout);
+router.post("/refresh", protect, refresh);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
 
 module.exports = router;

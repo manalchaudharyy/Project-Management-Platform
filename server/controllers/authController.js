@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../models/User");
 const BlacklistedToken = require("../models/BlacklistedToken");
+const sendEmail = require("../utils/sendEmail");
 
 // Every token gets a unique `jti` (JWT ID). This is what lets us revoke
 // ONE specific token on logout, instead of invalidating every token a user
@@ -161,4 +162,84 @@ const refresh = async (req, res) => {
   }
 };
 
-module.exports = { createUser, login, getMe, logout, refresh };
+// POST /api/auth/forgot-password  { email }
+// Always responds with the same generic message whether or not the email
+// exists — this prevents someone from using this endpoint to figure out
+// which emails are registered in the system.
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const genericMessage = "If an account with that email exists, a reset link has been sent.";
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(200).json({ message: genericMessage });
+    }
+
+    // Generate a random raw token to email to the user, but store only its
+    // hash in the DB — so even a database leak can't be used to reset
+    // anyone's password.
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+    await user.save();
+
+    const resetUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password/${rawToken}`;
+
+    await sendEmail({
+      to: user.email,
+      subject: "Reset your password",
+      html: `<p>Hi ${user.username},</p>
+             <p>Click the link below to reset your password. This link expires in 30 minutes.</p>
+             <p><a href="${resetUrl}">${resetUrl}</a></p>
+             <p>If you didn't request this, you can safely ignore this email.</p>`,
+    });
+
+    res.status(200).json({ message: genericMessage });
+  } catch (error) {
+    console.error("Forgot password error:", error.message);
+    res.status(500).json({ message: "Server error processing request" });
+  }
+};
+
+// POST /api/auth/reset-password/:token  { password }
+const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Reset link is invalid or has expired" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Password has been reset. You can now log in." });
+  } catch (error) {
+    console.error("Reset password error:", error.message);
+    res.status(500).json({ message: "Server error resetting password" });
+  }
+};
+
+module.exports = { createUser, login, getMe, logout, refresh, forgotPassword, resetPassword };

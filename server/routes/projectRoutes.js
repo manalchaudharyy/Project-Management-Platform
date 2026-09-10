@@ -1,5 +1,4 @@
 const express = require("express");
-
 const router = express.Router();
 
 const {
@@ -13,66 +12,16 @@ const {
   getProjectDashboard,
 } = require("../controllers/projectController");
 
-const {
-  protect,
-  authorize,
-} = require("../middleware/authMiddleware");
+const { protect, authorize } = require("../middleware/authMiddleware");
+const validateObjectId = require("../middleware/validateObjectId");
 
-/* Create project */
-router.post(
-  "/",
-  protect,
-  authorize("admin", "pm"),
-  createProject
-);
-
-/* Get all accessible projects */
-router.get(
-  "/",
-  protect,
-  getProjects
-);
-
-/* Get single project */
-router.get(
-  "/:id",
-  protect,
-  getProjectById
-);
-
-/* Edit project */
-router.put(
-  "/:id",
-  protect,
-  updateProject
-);
-
-/* Delete project */
-router.delete(
-  "/:id",
-  protect,
-  deleteProject
-);
-
-/* Add member */
-router.post(
-  "/:id/members",
-  protect,
-  addMember
-);
-
-/* Remove member */
-router.delete(
-  "/:id/members",
-  protect,
-  removeMember
-);
-
-/* Project dashboard */
-router.get(
-  "/:id/dashboard",
-  protect,
-  getProjectDashboard
-);
+router.post("/", protect, authorize("admin", "pm"), createProject);
+router.get("/", protect, getProjects);
+router.get("/:id", protect, validateObjectId("id"), getProjectById);
+router.put("/:id", protect, validateObjectId("id"), updateProject);
+router.delete("/:id", protect, validateObjectId("id"), deleteProject);
+router.post("/:id/members", protect, validateObjectId("id"), addMember);
+router.delete("/:id/members", protect, validateObjectId("id"), removeMember);
+router.get("/:id/dashboard", protect, validateObjectId("id"), getProjectDashboard);
 
 module.exports = router;

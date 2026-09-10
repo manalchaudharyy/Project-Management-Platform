@@ -1,7 +1,9 @@
 const Project = require("../models/Project");
 const Task = require("../models/Task");
 const mongoose = require("mongoose");
-
+const User = require("../models/User");
+const Notification = require("../models/Notifications");
+const { emitToUser } = require("../socket");
 const PROJECT_STATUS_VALUES = [
   "planning",
   "active",
@@ -320,132 +322,93 @@ const updateProject = async (req, res) => {
 /* =========================================================
    ADD MEMBER
 ========================================================= */
-
+/* =========================================================
+   ADD MEMBER
+========================================================= */
 const addMember = async (req, res) => {
   try {
-    const project = await Project.findById(
-      req.params.id
-    );
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
 
-    if (!project) {
-      return res.status(404).json({
-        message: "Project not found",
-      });
-    }
-
-    const isOwner =
-      project.owner.toString() === req.user.id;
-
-    const isPmOrAdmin =
-      req.user.role === "pm" ||
-      req.user.role === "admin";
-
+    const isOwner = project.owner.toString() === req.user.id;
+    const isPmOrAdmin = req.user.role === "pm" || req.user.role === "admin";
     if (!isOwner && !isPmOrAdmin) {
-      return res.status(403).json({
-        message:
-          "Forbidden: only the owner or a PM/Admin can add members",
-      });
+      return res.status(403).json({ message: "Forbidden: only the owner or a PM/Admin can add members" });
     }
 
     const { userId } = req.body;
-
-    if (!userId) {
-      return res.status(400).json({
-        message: "userId is required",
-      });
+    if (!userId) return res.status(400).json({ message: "userId is required" });
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid userId" });
     }
 
-    const alreadyMember =
-      project.members.some(
-        (member) =>
-          member.toString() === userId
-      );
+    const alreadyMember = project.members.some((member) => member.toString() === userId);
+    if (alreadyMember) return res.status(400).json({ message: "User is already a member" });
 
-    if (alreadyMember) {
-      return res.status(400).json({
-        message: "User is already a member",
-      });
-    }
+    const memberUser = await User.findById(userId);
+    if (!memberUser) return res.status(404).json({ message: "User not found" });
 
     project.members.push(userId);
-
     await project.save();
+
+    // Notify the new member — stored + real-time push if they're online
+    const notification = await Notification.create({
+      recipient: userId,
+      type: "project_assigned",
+      message: `You were added to the project "${project.name}"`,
+      project: project._id,
+    });
+    emitToUser(userId, "notification:new", notification);
 
     res.status(200).json(project);
   } catch (error) {
-    console.error(
-      "Add member error:",
-      error.message
-    );
-
-    res.status(500).json({
-      message: "Server error adding member",
-    });
+    console.error("Add member error:", error.message);
+    res.status(500).json({ message: "Server error adding member" });
   }
 };
 
 /* =========================================================
    REMOVE MEMBER
 ========================================================= */
-
 const removeMember = async (req, res) => {
   try {
-    const project = await Project.findById(
-      req.params.id
-    );
+    const project = await Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ message: "Project not found" });
 
-    if (!project) {
-      return res.status(404).json({
-        message: "Project not found",
-      });
-    }
-
-    const isOwner =
-      project.owner.toString() === req.user.id;
-
-    const isPmOrAdmin =
-      req.user.role === "pm" ||
-      req.user.role === "admin";
-
+    const isOwner = project.owner.toString() === req.user.id;
+    const isPmOrAdmin = req.user.role === "pm" || req.user.role === "admin";
     if (!isOwner && !isPmOrAdmin) {
-      return res.status(403).json({
-        message:
-          "Forbidden: only the owner or a PM/Admin can remove members",
-      });
+      return res.status(403).json({ message: "Forbidden: only the owner or a PM/Admin can remove members" });
     }
 
     const { userId } = req.body;
-
-    if (!userId) {
-      return res.status(400).json({
-        message: "userId is required",
-      });
+    if (!userId) return res.status(400).json({ message: "userId is required" });
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid userId" });
+    }
+    if (userId === project.owner.toString()) {
+      return res.status(400).json({ message: "Cannot remove the project owner" });
     }
 
-    if (
-      userId === project.owner.toString()
-    ) {
-      return res.status(400).json({
-        message:
-          "Cannot remove the project owner",
-      });
-    }
-
+    const wasMember = project.members.some((member) => member.toString() === userId);
     project.members.pull(userId);
-
     await project.save();
+
+    // Only notify if they were actually a member
+    if (wasMember) {
+      const notification = await Notification.create({
+        recipient: userId,
+        type: "project_removed",
+        message: `You were removed from the project "${project.name}"`,
+        project: project._id,
+      });
+      emitToUser(userId, "notification:new", notification);
+    }
 
     res.status(200).json(project);
   } catch (error) {
-    console.error(
-      "Remove member error:",
-      error.message
-    );
-
-    res.status(500).json({
-      message:
-        "Server error removing member",
-    });
+    console.error("Remove member error:", error.message);
+    res.status(500).json({ message: "Server error removing member" });
   }
 };
 

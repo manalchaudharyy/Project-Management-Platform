@@ -72,6 +72,11 @@ const getIO = () => {
   if (!io) throw new Error("Socket.io has not been initialized yet");
   return io;
 };
+// add this new function near emitToProject
+const emitToUser = (userId, event, payload) => {
+  if (!io || !userId) return;
+  io.to(userRoom(userId)).emit(event, payload);
+};
 
 // Broadcasts a task change to everyone currently viewing that project's
 // board. Safe to call even before a socket has connected — it's a no-op
@@ -81,4 +86,4 @@ const emitToProject = (projectId, event, payload) => {
   io.to(projectRoom(projectId)).emit(event, payload);
 };
 
-module.exports = { initSocket, getIO, userRoom, projectRoom, emitToProject };
+module.exports = { initSocket, getIO, userRoom, projectRoom, emitToProject, emitToUser };

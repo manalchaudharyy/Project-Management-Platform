@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { setCredentials } from "../store/authSlice";
-
+import { useNavigate, Link } from "react-router-dom";
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -132,22 +132,23 @@ const Login = () => {
 
           </div>
 
+
           <div>
-
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Password
-            </label>
-
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blueprint focus:bg-white focus:ring-4 focus:ring-blueprint/10"
-            />
-
-          </div>
+              <div className="mb-2 flex items-center justify-between">
+              <label className="block text-sm font-semibold text-slate-700">Password</label>
+              <Link to="/forgot-password" className="text-sm font-medium text-blueprint hover:text-blueprint-dark">
+              Forgot password?
+              </Link>
+           </div>
+  <input
+    type="password"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    required
+    placeholder="••••••••"
+    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blueprint focus:bg-white focus:ring-4 focus:ring-blueprint/10"
+  />
+</div>
 
           <button
             type="submit"

@@ -19,6 +19,14 @@ const userSchema = new mongoose.Schema({
     enum: ["member", "pm", "admin"],
     default: "member",
   },
+   // Set only while a "forgot password" request is pending; cleared once
+   // used or expired. The raw token is emailed — only its hash is stored.
+   resetPasswordToken: {
+    type: String,
+  },
+   resetPasswordExpires: {
+    type: Date,
+  },
  
 }, { timestamps: true });
 

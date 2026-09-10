@@ -1,5 +1,4 @@
 const express = require("express");
-
 const router = express.Router();
 
 const {
@@ -10,63 +9,16 @@ const {
   deleteTask,
 } = require("../controllers/taskController");
 
-const {
-  getComments,
-  createComment,
-} = require("../controllers/commentController");
+const { getComments, createComment } = require("../controllers/commentController");
+const { protect, authorize } = require("../middleware/authMiddleware");
+const validateObjectId = require("../middleware/validateObjectId");
 
-const {
-  protect,
-  authorize,
-} = require("../middleware/authMiddleware");
-
-/* Create task */
-router.post(
-  "/",
-  protect,
-  authorize("admin", "pm"),
-  createTask
-);
-
-/* Get tasks */
-router.get(
-  "/",
-  protect,
-  getTasks
-);
-
-/* Get single task */
-router.get(
-  "/:id",
-  protect,
-  getTaskById
-);
-
-/* Edit task */
-router.put(
-  "/:id",
-  protect,
-  updateTask
-);
-
-/* Delete task */
-router.delete(
-  "/:id",
-  protect,
-  deleteTask
-);
-
-/* Task comments */
-router.get(
-  "/:taskId/comments",
-  protect,
-  getComments
-);
-
-router.post(
-  "/:taskId/comments",
-  protect,
-  createComment
-);
+router.post("/", protect, authorize("admin", "pm"), createTask);
+router.get("/", protect, getTasks);
+router.get("/:id", protect, validateObjectId("id"), getTaskById);
+router.put("/:id", protect, validateObjectId("id"), updateTask);
+router.delete("/:id", protect, validateObjectId("id"), deleteTask);
+router.get("/:taskId/comments", protect, validateObjectId("taskId"), getComments);
+router.post("/:taskId/comments", protect, validateObjectId("taskId"), createComment);
 
 module.exports = router;

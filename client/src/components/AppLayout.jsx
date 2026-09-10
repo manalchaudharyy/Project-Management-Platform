@@ -359,6 +359,14 @@ const AppLayout = ({ title, children }) => {
                     </p>
                   </div>
                   <div className="my-1 border-t border-line" />
+                  <Link
+                    to="/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="block w-full rounded-md px-3 py-2 text-left text-sm text-ink-muted transition hover:bg-paper hover:text-ink"
+                  >
+                    ◔ View profile
+                  </Link>
+                  <div className="my-1 border-t border-line" />
                   <button
                     onClick={handleLogout}
                     className="w-full rounded-md px-3 py-2 text-left text-sm text-ink-muted transition hover:bg-red-50 hover:text-red-600"

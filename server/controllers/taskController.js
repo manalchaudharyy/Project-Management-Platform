@@ -128,16 +128,30 @@ const getTaskById = async (req, res) => {
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
+
+    // Only admins, the project owner, or a project member can view a task.
+    // Without this check, anyone logged in could open ANY task just by
+    // guessing/typing its id in the URL — even for projects they're not on.
+    if (req.user.role !== "admin") {
+      const project = await Project.findById(task.project);
+      const isOwner = !!project && project.owner.toString() === req.user.id;
+      const isMember =
+        !!project && project.members.some((m) => m.toString() === req.user.id);
+
+      if (!isOwner && !isMember) {
+        return res.status(403).json({ message: "Forbidden: you don't have access to this task" });
+      }
+    }
+
     res.status(200).json(task);
   } catch (error) {
     console.error("Get task by id error:", error.message);
     res.status(500).json({ message: "Server error fetching task" });
   }
 };
-
 const updateTask = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findById( req.params.id);
 
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
