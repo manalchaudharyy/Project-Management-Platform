@@ -19,8 +19,11 @@ const STATUS_SEGMENTS = [
 
 const Dashboard = () => {
   const user = useSelector((state) => state.auth.user);
+  const isAdmin = user?.role === "admin";
+
   const [projects, setProjects] = useState([]);
   const [projectStats, setProjectStats] = useState({});
+  const [userCount, setUserCount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -42,6 +45,18 @@ const Dashboard = () => {
           })
         );
         setProjectStats(Object.fromEntries(statsEntries));
+
+        // Admins get a workspace-wide "how many people are on the platform"
+        // number alongside the project stats. Members/PMs don't see this —
+        // it's not their data to browse.
+        if (isAdmin) {
+          try {
+            const usersRes = await axiosClient.get("/users");
+            setUserCount(usersRes.data.length);
+          } catch {
+            setUserCount(null);
+          }
+        }
       } catch {
         setError("Could not load projects");
       } finally {
@@ -49,7 +64,7 @@ const Dashboard = () => {
       }
     };
     fetchAll();
-  }, []);
+  }, [isAdmin]);
 
   // Aggregate totals across every project (same as before)
   const totals = Object.values(projectStats).reduce(
@@ -107,6 +122,11 @@ const Dashboard = () => {
         <h2 className="text-xl font-semibold tracking-tight text-ink">
           Overview
         </h2>
+        {isAdmin && (
+          <p className="mt-1 text-xs font-mono uppercase tracking-widest text-marker">
+            Admin view — every project on the platform
+          </p>
+        )}
       </div>
 
       {error && (
@@ -114,11 +134,14 @@ const Dashboard = () => {
       )}
 
       {/* Top stat row — matches the 4 numbers in the Asana screenshot */}
-     <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+     <div className={`mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4 ${isAdmin ? "lg:grid-cols-5" : ""}`}>
   <StatCard index={0} value={totals.done} label="Completed tasks" />
   <StatCard index={1} value={totals.total - totals.done} label="Incomplete tasks" />
   <StatCard index={2} value={totals.overdue} label="Overdue tasks" accent={totals.overdue ? "text-priority-critical" : "text-ink"} />
   <StatCard index={3} value={totals.total} label="Total tasks" />
+  {isAdmin && (
+    <StatCard index={4} value={userCount ?? "—"} label="Registered users" />
+  )}
 </div>
 
       {/* 3-chart row */}
@@ -257,6 +280,7 @@ const STAT_STYLES = [
   { icon: "◷", bg: "bg-amber-100", color: "text-amber-600" },
   { icon: "!", bg: "bg-rose-100", color: "text-rose-600" },
   { icon: "▤", bg: "bg-violet-100", color: "text-violet-600" },
+  { icon: "◎", bg: "bg-sky-100", color: "text-sky-600" },
 ];
 
 const StatCard = ({ value, label, index = 0, accent = "text-ink" }) => {
