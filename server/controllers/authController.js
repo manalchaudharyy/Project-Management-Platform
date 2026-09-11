@@ -5,16 +5,12 @@ const User = require("../models/User");
 const BlacklistedToken = require("../models/BlacklistedToken");
 const sendEmail = require("../utils/sendEmail");
 
-// Every token gets a unique `jti` (JWT ID). This is what lets us revoke
-// ONE specific token on logout, instead of invalidating every token a user
-// has ever been issued (which would log them out of every device/tab).
 const generateToken = (userId, role) => {
   return jwt.sign({ id: userId, role, jti: crypto.randomUUID() }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
 };
 
-// POST /api/users (admin/pm) — creates member/pm accounts, never admin
 const createUser = async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
@@ -32,7 +28,7 @@ const createUser = async (req, res) => {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
-    const allowedRoles = ["member", "pm"]; // "admin" can never be created here
+    const allowedRoles = ["member", "pm"];
     const finalRole = allowedRoles.includes(role) ? role : "member";
 
     const existingUser = await User.findOne({ email });
@@ -62,7 +58,6 @@ const createUser = async (req, res) => {
   }
 };
 
-// POST /api/auth/login
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -98,7 +93,6 @@ const login = async (req, res) => {
   }
 };
 
-// GET /api/auth/me (protected)
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
@@ -112,21 +106,16 @@ const getMe = async (req, res) => {
   }
 };
 
-// POST /api/auth/logout (protected)
-// Actually revokes the current token by recording its jti as blacklisted,
-// so it can no longer be used even though it hasn't naturally expired yet.
 const logout = async (req, res) => {
   try {
-    const { jti, exp } = req.user; // set by protect() from the decoded JWT
+    const { jti, exp } = req.user;
 
     if (jti && exp) {
-      // exp is in seconds (JWT standard) — convert to a JS Date for expiresAt
       await BlacklistedToken.create({ jti, expiresAt: new Date(exp * 1000) });
     }
 
     res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
-    // If the jti is already blacklisted (e.g. double logout call), that's fine.
     if (error.code === 11000) {
       return res.status(200).json({ message: "Logged out successfully" });
     }
@@ -135,9 +124,6 @@ const logout = async (req, res) => {
   }
 };
 
-// POST /api/auth/refresh (protected) — issues a fresh token for the
-// already-authenticated user, e.g. when they hit "Continue" on the
-// session-timeout warning so their session doesn't expire mid-work.
 const refresh = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
@@ -162,10 +148,6 @@ const refresh = async (req, res) => {
   }
 };
 
-// POST /api/auth/forgot-password  { email }
-// Always responds with the same generic message whether or not the email
-// exists — this prevents someone from using this endpoint to figure out
-// which emails are registered in the system.
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -180,14 +162,11 @@ const forgotPassword = async (req, res) => {
       return res.status(200).json({ message: genericMessage });
     }
 
-    // Generate a random raw token to email to the user, but store only its
-    // hash in the DB — so even a database leak can't be used to reset
-    // anyone's password.
     const rawToken = crypto.randomBytes(32).toString("hex");
     const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
 
     user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+    user.resetPasswordExpires = new Date(Date.now() + 30 * 60 * 1000);
     await user.save();
 
     const resetUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password/${rawToken}`;
@@ -208,7 +187,6 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// POST /api/auth/reset-password/:token  { password }
 const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
@@ -242,4 +220,45 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { createUser, login, getMe, logout, refresh, forgotPassword, resetPassword };
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current and new password are required" });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.status(200).json({ message: "Password changed successfully" });
+  } catch (error) {
+    console.error("Change password error:", error.message);
+    res.status(500).json({ message: "Server error changing password" });
+  }
+};
+
+module.exports = {
+  createUser,
+  login,
+  getMe,
+  logout,
+  refresh,
+  forgotPassword,
+  resetPassword,
+  changePassword,
+};

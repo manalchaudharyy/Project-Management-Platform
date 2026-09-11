@@ -17,6 +17,12 @@ const AppLayout = ({ title, children }) => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Project-assignment notifications (separate from chat/inbox unread).
+  const [notifications, setNotifications] = useState([]);
+  const [notifUnread, setNotifUnread] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifBoxRef = useRef(null);
+
   // Top-bar search: term, results dropdown, and loading state.
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState(null);
@@ -60,6 +66,71 @@ const AppLayout = ({ title, children }) => {
     return () => socket.off("message:new", handleNewMessage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  // Project-assignment notifications: fetch the current list + unread
+  // count once, then listen for real-time pushes from the server.
+  useEffect(() => {
+    if (!token) return;
+
+    axiosClient
+      .get("/notifications")
+      .then((res) => {
+        setNotifications(res.data.notifications || []);
+        setNotifUnread(res.data.unreadCount || 0);
+      })
+      .catch(() => {});
+
+    const socket = getSocket(token);
+    if (!socket) return;
+
+    const handleNewNotification = (notification) => {
+      setNotifications((prev) => [notification, ...prev].slice(0, 30));
+      setNotifUnread((prev) => prev + 1);
+    };
+
+    socket.on("notification:new", handleNewNotification);
+    return () => socket.off("notification:new", handleNewNotification);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  // Close the notification dropdown on outside click.
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifBoxRef.current && !notifBoxRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleOpenNotification = async (notification) => {
+    if (!notification.read) {
+      try {
+        await axiosClient.put(`/notifications/${notification._id}/read`);
+        setNotifications((prev) =>
+          prev.map((n) => (n._id === notification._id ? { ...n, read: true } : n))
+        );
+        setNotifUnread((prev) => Math.max(0, prev - 1));
+      } catch {
+        // ignore — not critical if this fails
+      }
+    }
+    setNotifOpen(false);
+    if (notification.project) {
+      navigate(`/projects/${notification.project._id || notification.project}`);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await axiosClient.put("/notifications/read-all");
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setNotifUnread(0);
+    } catch {
+      // ignore — not critical if this fails
+    }
+  };
 
   // Close the search dropdown on outside click.
   useEffect(() => {
@@ -250,8 +321,32 @@ const AppLayout = ({ title, children }) => {
             ☰
           </button>
 
+          {/* Top nav — visible on tablet widths only, where the sidebar is
+              hidden but there's room for horizontal buttons. */}
+          <nav className="hidden items-center gap-1 overflow-x-auto sm:flex md:hidden">
+            {items.map((item) => {
+              const active = location.pathname.startsWith(item.to);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                    active
+                      ? "bg-linear-to-r from-blueprint to-blueprint-dark text-white"
+                      : "text-ink-muted hover:bg-paper hover:text-ink"
+                  }`}
+                >
+                  <span>{item.icon}</span>
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
           {title && (
-            <h1 className="font-display text-base font-bold text-ink">{title}</h1>
+            <span className="hidden shrink-0 items-center gap-1.5 rounded-md bg-linear-to-r from-blueprint to-blueprint-dark px-3 py-1.5 font-display text-sm font-bold text-white md:flex">
+              {title}
+            </span>
           )}
 
           <div className="flex-1" />
@@ -321,6 +416,59 @@ const AppLayout = ({ title, children }) => {
             )}
           </div>
 
+          {/* NOTIFICATION BELL — project assign/remove alerts, separate from chat */}
+          <div className="relative" ref={notifBoxRef}>
+            <button
+              onClick={() => setNotifOpen((v) => !v)}
+              className="relative rounded-md p-2 text-ink-muted transition hover:bg-paper"
+              title={notifUnread > 0 ? `${notifUnread} new notification(s)` : "No new notifications"}
+            >
+              🔔
+              {notifUnread > 0 && (
+                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-marker px-1 text-[9px] font-bold text-white">
+                  {notifUnread > 9 ? "9+" : notifUnread}
+                </span>
+              )}
+            </button>
+
+            {notifOpen && (
+              <div className="absolute right-0 z-50 mt-2 w-80 max-h-96 overflow-y-auto rounded-md border border-line bg-white shadow-panel">
+                <div className="flex items-center justify-between border-b border-line px-4 py-2">
+                  <p className="text-sm font-medium text-ink">Notifications</p>
+                  {notifUnread > 0 && (
+                    <button
+                      onClick={handleMarkAllRead}
+                      className="text-xs font-medium text-blueprint hover:underline"
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                </div>
+
+                {notifications.length === 0 && (
+                  <p className="px-4 py-6 text-center text-sm text-ink-muted">
+                    No notifications yet
+                  </p>
+                )}
+
+                {notifications.map((n) => (
+                  <button
+                    key={n._id}
+                    onClick={() => handleOpenNotification(n)}
+                    className={`block w-full border-b border-line px-4 py-3 text-left text-sm transition hover:bg-paper ${
+                      n.read ? "text-ink-muted" : "font-medium text-ink"
+                    }`}
+                  >
+                    {!n.read && (
+                      <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-marker align-middle" />
+                    )}
+                    {n.message}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* BELL — mirrors the Inbox unread count; click jumps to Inbox */}
           <button
             onClick={() => navigate("/inbox")}
@@ -350,21 +498,17 @@ const AppLayout = ({ title, children }) => {
                   onClick={() => setMenuOpen(false)}
                 />
                 <div className="absolute right-0 z-50 mt-2 w-48 rounded-md border border-line bg-white p-1 shadow-panel">
-                  <div className="px-3 py-2">
+                  <Link
+                    to="/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="block w-full rounded-md px-3 py-2 text-left transition hover:bg-paper"
+                  >
                     <p className="truncate text-sm font-medium text-ink">
                       {user?.username}
                     </p>
                     <p className="text-xs capitalize text-ink-muted">
                       {user?.role}
                     </p>
-                  </div>
-                  <div className="my-1 border-t border-line" />
-                  <Link
-                    to="/profile"
-                    onClick={() => setMenuOpen(false)}
-                    className="block w-full rounded-md px-3 py-2 text-left text-sm text-ink-muted transition hover:bg-paper hover:text-ink"
-                  >
-                    ◔ View profile
                   </Link>
                   <div className="my-1 border-t border-line" />
                   <button

@@ -9,6 +9,12 @@ const Profile = () => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState("");
 
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [pwSuccess, setPwSuccess] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -27,6 +33,23 @@ const Profile = () => {
   const handleLogout = () => {
     dispatch(logout());
     navigate("/login");
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPwError("");
+    setPwSuccess("");
+    setPwLoading(true);
+    try {
+      await axiosClient.put("/auth/change-password", { currentPassword, newPassword });
+      setPwSuccess("Password changed successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+    } catch (err) {
+      setPwError(err.response?.data?.message || "Could not change password");
+    } finally {
+      setPwLoading(false);
+    }
   };
 
   if (error) {
@@ -65,9 +88,41 @@ const Profile = () => {
           </div>
         </dl>
 
+        <form onSubmit={handleChangePassword} className="mt-6 border-t border-line pt-4 space-y-3">
+          <p className="text-sm font-medium text-ink">Change password</p>
+
+          {pwError && <p className="text-sm text-priority-critical">{pwError}</p>}
+          {pwSuccess && <p className="text-sm text-green-600">{pwSuccess}</p>}
+
+          <input
+            type="password"
+            placeholder="Current password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            required
+            className="w-full rounded-md border border-line px-3 py-2 text-sm"
+          />
+          <input
+            type="password"
+            placeholder="New password (min 6 characters)"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            minLength={6}
+            className="w-full rounded-md border border-line px-3 py-2 text-sm"
+          />
+          <button
+            type="submit"
+            disabled={pwLoading}
+            className="w-full rounded-md bg-blueprint py-2.5 text-sm font-medium text-white hover:bg-blueprint-dark transition-colors disabled:opacity-60"
+          >
+            {pwLoading ? "Changing…" : "Change password"}
+          </button>
+        </form>
+
         <button
           onClick={handleLogout}
-          className="mt-6 w-full rounded-md border border-line py-2.5 text-sm font-medium text-ink hover:border-priority-critical hover:text-priority-critical transition-colors"
+          className="mt-4 w-full rounded-md border border-line py-2.5 text-sm font-medium text-ink hover:border-priority-critical hover:text-priority-critical transition-colors"
         >
           Log out
         </button>
