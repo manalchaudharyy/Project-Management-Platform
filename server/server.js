@@ -11,10 +11,32 @@ const userRoutes = require("./routes/userRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 const express = require("express");
+const cors = require("cors");
 const { initSocket } = require("./socket");
 const app = express()
 const PORT = process.env.PORT || 5000;
-const aiRoutes = require("./routes/aiRoutes"); 
+const aiRoutes = require("./routes/aiRoutes");
+
+// CLIENT_URL supports a comma-separated list so both a local dev URL and a
+// deployed frontend URL can be allowed at once, e.g.:
+// CLIENT_URL=http://localhost:5173,https://your-frontend.vercel.app
+const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim());
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser requests (curl, Postman, server-to-server) which
+      // have no Origin header at all.
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use("/api/projects", aiRoutes);
 app.use("/api/tasks", aiRoutes);

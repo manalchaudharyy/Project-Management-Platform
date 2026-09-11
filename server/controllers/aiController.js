@@ -1,4 +1,5 @@
 const Task = require("../models/Task");
+const Project = require("../models/Project");
 const {
   generateTasksFromPrompt,
   breakdownTask,
@@ -6,8 +7,32 @@ const {
   generateRiskAnalysis,
 } = require("../services/aiService");
 
+// Shared access check: mirrors the pattern used in projectController /
+// commentController — a user can use AI features on a project only if
+// they're an admin, the project owner, or a project member. Without this,
+// any logged-in user could read another team's task stats or summaries
+// just by guessing/incrementing a project id (IDOR).
+const canAccessProject = (project, user) => {
+  if (!project) return false;
+  if (user.role === "admin") return true;
+
+  const isOwner = project.owner.toString() === user.id;
+  const isMember = project.members.some((m) => m.toString() === user.id);
+
+  return isOwner || isMember;
+};
+
 const generateTasks = async (req, res) => {
   try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    if (!canAccessProject(project, req.user)) {
+      return res.status(403).json({ message: "Forbidden: you don't have access to this project" });
+    }
+
     const { prompt } = req.body;
 
     if (!prompt || !prompt.trim()) {
@@ -32,6 +57,11 @@ const breakdownExistingTask = async (req, res) => {
       return res.status(404).json({ message: "Task not found" });
     }
 
+    const project = await Project.findById(task.project);
+    if (!canAccessProject(project, req.user)) {
+      return res.status(403).json({ message: "Forbidden: you don't have access to this task" });
+    }
+
     const subtasks = await breakdownTask(task.title, task.description);
 
     res.status(200).json({ tasks: subtasks });
@@ -46,6 +76,14 @@ const breakdownExistingTask = async (req, res) => {
 const getProjectSummary = async (req, res) => {
   try {
     const { projectId } = req.params;
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    if (!canAccessProject(project, req.user)) {
+      return res.status(403).json({ message: "Forbidden: you don't have access to this project" });
+    }
 
     const tasks = await Task.find({ project: projectId });
 
@@ -91,6 +129,14 @@ const getProjectSummary = async (req, res) => {
 const getProjectRisks = async (req, res) => {
   try {
     const { projectId } = req.params;
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    if (!canAccessProject(project, req.user)) {
+      return res.status(403).json({ message: "Forbidden: you don't have access to this project" });
+    }
 
     const tasks = await Task.find({ project: projectId })
       .populate("assignee", "username");

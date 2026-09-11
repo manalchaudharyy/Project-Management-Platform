@@ -58,6 +58,62 @@ const createUser = async (req, res) => {
   }
 };
 
+// POST /api/auth/register — public self-signup.
+// Unlike createUser (admin/PM only, can grant "pm"), this always forces
+// the new account to "member" — a public endpoint must never let the
+// caller choose their own elevated role.
+const register = async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: "Username, email and password are required" });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Please provide a valid email address" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email is already registered" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const user = await User.create({
+      username,
+      email,
+      password: hashedPassword,
+      role: "member",
+    });
+
+    const token = generateToken(user._id, user.role);
+
+    res.status(201).json({
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ message: error.message });
+    }
+    console.error("Register error:", error.message);
+    res.status(500).json({ message: "Server error during registration" });
+  }
+};
+
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -254,6 +310,7 @@ const changePassword = async (req, res) => {
 
 module.exports = {
   createUser,
+  register,
   login,
   getMe,
   logout,

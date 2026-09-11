@@ -14,8 +14,15 @@ const userRoom = (userId) => `user:${userId}`;
 const projectRoom = (projectId) => `project:${projectId}`;
 
 const initSocket = (httpServer) => {
+  // Same allow-list as the REST API's CORS config (server.js), so the
+  // websocket connection is restricted to trusted frontend origins instead
+  // of "*" in production.
+  const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
+    .split(",")
+    .map((origin) => origin.trim());
+
   io = new Server(httpServer, {
-    cors: { origin: "*" },
+    cors: { origin: allowedOrigins, credentials: true },
   });
 
   // Authenticate the socket the same way REST routes do — a JWT, but passed

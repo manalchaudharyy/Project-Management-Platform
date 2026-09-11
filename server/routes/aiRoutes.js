@@ -1,13 +1,23 @@
 const express = require("express");
 const router = express.Router();
-const { login, getMe, logout, refresh, forgotPassword, resetPassword } = require("../controllers/authController");
+const {
+  generateTasks,
+  breakdownExistingTask,
+  getProjectSummary,
+  getProjectRisks,
+} = require("../controllers/aiController");
 const { protect } = require("../middleware/authMiddleware");
 
-router.post("/login", login);
-router.get("/me", protect, getMe);
-router.post("/logout", protect, logout);
-router.post("/refresh", protect, refresh);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password/:token", resetPassword);
+// Mounted at both /api/projects and /api/tasks in server.js, so paths
+// below are written generically ("/:id/ai/...") and match whichever
+// resource id is relevant to that action.
+
+// Project-scoped AI actions
+router.post("/:id/ai/generate-tasks", protect, generateTasks);
+router.get("/:projectId/ai/summary", protect, getProjectSummary);
+router.get("/:projectId/ai/risks", protect, getProjectRisks);
+
+// Task-scoped AI action
+router.post("/:id/ai/breakdown", protect, breakdownExistingTask);
 
 module.exports = router;

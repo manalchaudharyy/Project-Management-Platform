@@ -158,7 +158,14 @@ const Login = () => {
 
         </form>
 
-        <p className="mt-8 text-center text-xs text-slate-400">
+        <p className="mt-6 text-center text-sm text-slate-500">
+          Don't have an account?{" "}
+          <Link to="/register" className="font-semibold text-blueprint hover:text-blueprint-dark">
+            Sign up
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center text-xs text-slate-400">
           Secure workspace • Built for productive teams
         </p>
 
