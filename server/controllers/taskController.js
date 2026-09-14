@@ -1,6 +1,7 @@
 const Task = require("../models/Task");
 const Project = require("../models/Project");
 const { emitToProject } = require("../socket");
+const cloudinary = require("../config/cloudinary");
 
 const TASK_STATUS_VALUES = ["todo", "in-progress", "review", "done"];
 const TASK_PRIORITY_VALUES = ["low", "medium", "high", "critical"];
@@ -46,8 +47,6 @@ const createTask = async (req, res) => {
 
     await task.populate({ path: "assignee", select: "username email" });
 
-    // Live board update: everyone else looking at this project's Kanban
-    // board sees the new task appear without refreshing.
     emitToProject(task.project.toString(), "taskCreated", task);
 
     res.status(201).json(task);
@@ -129,9 +128,6 @@ const getTaskById = async (req, res) => {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    // Only admins, the project owner, or a project member can view a task.
-    // Without this check, anyone logged in could open ANY task just by
-    // guessing/typing its id in the URL — even for projects they're not on.
     if (req.user.role !== "admin") {
       const project = await Project.findById(task.project);
       const isOwner = !!project && project.owner.toString() === req.user.id;
@@ -149,9 +145,10 @@ const getTaskById = async (req, res) => {
     res.status(500).json({ message: "Server error fetching task" });
   }
 };
+
 const updateTask = async (req, res) => {
   try {
-    const task = await Task.findById( req.params.id);
+    const task = await Task.findById(req.params.id);
 
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
@@ -159,8 +156,6 @@ const updateTask = async (req, res) => {
 
     const isPmOrAdmin = req.user.role === "pm" || req.user.role === "admin";
 
-    // Any member of the task's project can update it — not just the
-    // current assignee. PM/Admin can update any task, anywhere.
     let isProjectMember = false;
     if (!isPmOrAdmin) {
       const project = await Project.findById(task.project);
@@ -222,9 +217,7 @@ const updateTask = async (req, res) => {
       task[field] = newValue;
     };
 
-       if (req.user.role === "member") {
-      // Members can change status and priority — assignee stays a
-      // PM/Admin-only call.
+    if (req.user.role === "member") {
       applyChange("status");
       applyChange("priority");
     } else {
@@ -238,8 +231,6 @@ const updateTask = async (req, res) => {
     const updatedTask = await task.save();
     await updatedTask.populate({ path: "assignee", select: "username email" });
 
-    // Live board update: everyone else looking at this project's Kanban
-    // board sees the moved/edited task without refreshing.
     emitToProject(updatedTask.project.toString(), "taskUpdated", updatedTask);
 
     res.status(200).json(updatedTask);
@@ -271,8 +262,6 @@ const deleteTask = async (req, res) => {
 
     await task.deleteOne();
 
-    // Live board update: everyone else looking at this project's Kanban
-    // board sees the task disappear without refreshing.
     emitToProject(projectId, "taskDeleted", { taskId });
 
     res.status(200).json({ message: "Task deleted" });
@@ -282,4 +271,69 @@ const deleteTask = async (req, res) => {
   }
 };
 
-module.exports = { createTask, getTasks, getTaskById, updateTask, deleteTask };
+// naya function — file ko cloudinary pe upload kar ke task.attachments mein save karta hai
+const uploadAttachment = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    // same access rule jo updateTask mein hai — PM/Admin ya project member
+    const isPmOrAdmin = req.user.role === "pm" || req.user.role === "admin";
+
+    let isProjectMember = false;
+    if (!isPmOrAdmin) {
+      const project = await Project.findById(task.project);
+      isProjectMember =
+        !!project &&
+        (project.owner.toString() === req.user.id ||
+          project.members.some((m) => m.toString() === req.user.id));
+    }
+
+    if (!isPmOrAdmin && !isProjectMember) {
+      return res.status(403).json({ message: "Forbidden: you're not a member of this project" });
+    }
+
+    const streamUpload = () =>
+      new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "task_attachments" },
+          (error, result) => (result ? resolve(result) : reject(error))
+        );
+        stream.end(req.file.buffer);
+      });
+
+    const result = await streamUpload();
+
+    task.attachments.push({
+      filename: req.file.originalname,
+      url: result.secure_url,
+      uploadedBy: req.user.id,
+    });
+
+    await task.save();
+    await task.populate({ path: "assignee", select: "username email" });
+
+    emitToProject(task.project.toString(), "taskUpdated", task);
+
+    res.status(200).json(task);
+  } catch (error) {
+    console.error("Upload attachment error:", error.message);
+    res.status(500).json({ message: "Server error uploading attachment" });
+  }
+};
+
+module.exports = {
+  createTask,
+  getTasks,
+  getTaskById,
+  updateTask,
+  deleteTask,
+  uploadAttachment,
+};

@@ -39,6 +39,14 @@ const taskSchema = new mongoose.Schema({
       changedAt: { type: Date, default: Date.now },
     },
   ],
+  attachments: [
+    {
+      filename: { type: String, required: true },
+      url: { type: String, required: true },
+      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+      uploadedAt: { type: Date, default: Date.now },
+    },
+  ],
 }, { timestamps: true });
 
 const Task = mongoose.model("Task", taskSchema);

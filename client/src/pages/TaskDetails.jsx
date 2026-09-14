@@ -22,6 +22,11 @@ const TaskDetails = () => {
   const [editCommentDraft, setEditCommentDraft] = useState("");
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  // Members can also upload attachments (same as reassignment access), not just PM/Admin
+  const canUpload =
+    canReassign || members.some((m) => m._id === currentUser?.id);
 
   const fetchData = async () => {
     try {
@@ -99,6 +104,35 @@ const TaskDetails = () => {
       setComments(res.data);
     } catch (err) {
       setError("Could not add comment");
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Frontend-side size guard so a big file doesn't get uploaded just to be
+    // rejected by the backend's 10MB limit.
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File must be under 10MB");
+      e.target.value = "";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setUploading(true);
+    try {
+      const res = await axiosClient.post(`/tasks/${id}/attachments`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setTask(res.data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not upload attachment");
+    } finally {
+      setUploading(false);
+      e.target.value = ""; // same file dobara select karne ke liye reset
     }
   };
 
@@ -205,6 +239,51 @@ const TaskDetails = () => {
             </p>
           ) : (
             <p className="text-sm italic text-ink-muted/70">No description yet.</p>
+          )}
+        </div>
+
+        <div className="mb-4 rounded-md border border-line bg-paper p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+              Attachments
+            </h3>
+            {canUpload && (
+              <label className="cursor-pointer rounded-md px-2 py-1 text-xs font-medium text-blueprint hover:bg-blueprint/10 transition-colors">
+                {uploading ? "Uploading…" : "+ Add file"}
+                <input
+                  type="file"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+
+          {task.attachments && task.attachments.length > 0 ? (
+            <ul className="space-y-2">
+              {task.attachments.map((att, idx) => (
+                <li
+                  key={att._id || idx}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <a
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="truncate text-blueprint hover:underline"
+                  >
+                    {att.filename}
+                  </a>
+                  <span className="shrink-0 text-xs text-ink-muted">
+                    {att.uploadedBy?.username || "Unknown"} ·{" "}
+                    {new Date(att.uploadedAt).toLocaleDateString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm italic text-ink-muted/70">No attachments yet.</p>
           )}
         </div>
 
