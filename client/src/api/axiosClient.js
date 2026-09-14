@@ -5,7 +5,7 @@ import axios from "axios";
 // backend are usually deployed to two different domains, so VITE_API_URL
 // must be set at build time to the deployed backend's URL, e.g.:
 // VITE_API_URL=https://your-backend.onrender.com/api
-const baseURL = import.meta.env.VITE_API_URL || "/api";
+const baseURL = import.meta.env.VITE_API_URL;
 
 const axiosClient = axios.create({
   baseURL,
