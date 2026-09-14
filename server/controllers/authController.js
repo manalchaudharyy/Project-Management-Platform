@@ -225,7 +225,13 @@ const forgotPassword = async (req, res) => {
     user.resetPasswordExpires = new Date(Date.now() + 30 * 60 * 1000);
     await user.save();
 
-    const resetUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password/${rawToken}`;
+    // CLIENT_URL may hold a comma-separated list (used for CORS, where
+    // multiple origins are allowed at once) — for the reset link we only
+    // ever want a single URL, so take just the first one.
+    const frontendUrl = (process.env.CLIENT_URL || "http://localhost:5173")
+      .split(",")[0]
+      .trim();
+    const resetUrl = `${frontendUrl}/reset-password/${rawToken}`;
 
     await sendEmail({
       to: user.email,
