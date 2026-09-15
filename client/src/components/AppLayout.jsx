@@ -379,10 +379,10 @@ const AppLayout = ({ title, children }) => {
           </nav>
 
           {title && (
-            <span className="hidden shrink-0 items-center gap-1.5 rounded-md bg-linear-to-r from-blueprint to-blueprint-dark px-3 py-1.5 font-display text-sm font-bold text-white md:flex">
-              {title}
-            </span>
-          )}
+  <span className="hidden shrink-0 items-center font-display text-base font-semibold text-ink md:flex">
+    {title}
+  </span>
+)}
 
           <div className="flex-1" />
 

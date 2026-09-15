@@ -11,23 +11,21 @@ import {
   AreaChart, Area, ResponsiveContainer,
 } from "recharts";
 
-// A small, deliberate palette — one hue per meaning, not a rainbow.
-// Emerald = done/positive, amber = in motion, violet = the "featured"
-// accent, rose = needs attention, stone = neutral/empty. No blue.
+// One accent color, done in shades — not a rainbow. Red is reserved
+// only for "needs attention" (overdue), so it actually stands out.
 export const PALETTE = {
-  emerald: "#059669",
-  amber: "#d97706",
-  blue: "#1d4ed8",   
-  rose: "#dc2626",
-  stone: "#64748b",
-  stoneLight: "#e2e8f0",
+  primary: "#1d4ed8",       // blue-700 — done / complete / the accent
+  primarySoft: "#60a5fa",   // blue-400 — in progress
+  slate: "#64748b",         // neutral — review
+  slateLight: "#cbd5e1",    // faint neutral — to do / incomplete
+  danger: "#dc2626",        // reserved for overdue only
 };
 
 const STATUS_SEGMENTS = [
-  { key: "done", label: "Done", color: PALETTE.emerald },
-  { key: "in-progress", label: "In progress", color: PALETTE.amber },
-  { key: "review", label: "Review", color: PALETTE.violet },
-  { key: "todo", label: "To do", color: PALETTE.stone },
+  { key: "done", label: "Done", color: PALETTE.primary },
+  { key: "in-progress", label: "In progress", color: PALETTE.primarySoft },
+  { key: "review", label: "Review", color: PALETTE.slate },
+  { key: "todo", label: "To do", color: PALETTE.slateLight },
 ];
 
 const Dashboard = () => {
@@ -130,8 +128,8 @@ const Dashboard = () => {
   }));
 
   const donutData = [
-    { name: "Complete", value: totals.done, color: PALETTE.emerald },
-    { name: "Incomplete", value: totals.total - totals.done, color: PALETTE.stoneLight },
+    { name: "Complete", value: totals.done, color: PALETTE.primary },
+    { name: "Incomplete", value: totals.total - totals.done, color: PALETTE.slateLight },
   ];
 
   const assigneeMap = {};
@@ -166,7 +164,7 @@ const Dashboard = () => {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md border border-line bg-white p-3 text-sm" style={{ color: PALETTE.rose }}>
+        <div className="mb-4 rounded-md border border-line bg-white p-3 text-sm" style={{ color: PALETTE.danger }}>
           {error}
         </div>
       )}
@@ -181,7 +179,7 @@ const Dashboard = () => {
             onChange={(e) => setCalendarProjectId(e.target.value)}
             className="rounded-md border border-line bg-white px-2.5 py-1.5 text-xs font-medium text-ink outline-none transition-colors"
             style={{ colorScheme: "light" }}
-            onFocus={(e) => (e.target.style.borderColor = PALETTE.violet)}
+            onFocus={(e) => (e.target.style.borderColor = PALETTE.primary)}
             onBlur={(e) => (e.target.style.borderColor = "")}
           >
             <option value="all">All projects</option>
@@ -200,20 +198,20 @@ const Dashboard = () => {
       </div>
 
       <div className={`mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4 ${isAdmin ? "lg:grid-cols-5" : ""}`}>
-        <StatCard value={totals.done} label="Completed tasks" dot={PALETTE.emerald} />
-        <StatCard value={totals.total - totals.done} label="Incomplete tasks" dot={PALETTE.amber} />
-        <StatCard value={totals.overdue} label="Overdue tasks" dot={PALETTE.rose} accent={totals.overdue ? "text-priority-critical" : "text-ink"} />
-        <StatCard value={totals.total} label="Total tasks" dot={PALETTE.violet} />
-        {isAdmin && <StatCard value={userCount ?? "—"} label="Registered users" dot={PALETTE.stone} />}
+        <StatCard value={totals.done} label="Completed tasks" dot={PALETTE.primary} />
+        <StatCard value={totals.total - totals.done} label="Incomplete tasks" dot={PALETTE.primarySoft} />
+        <StatCard value={totals.overdue} label="Overdue tasks" dot={PALETTE.danger} accent={totals.overdue ? "text-priority-critical" : "text-ink"} />
+        <StatCard value={totals.total} label="Total tasks" dot={PALETTE.slate} />
+        {isAdmin && <StatCard value={userCount ?? "—"} label="Registered users" dot={PALETTE.slateLight} />}
       </div>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <ChartCard title="Tasks by status">
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={byStatusData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#78716c" }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#78716c" }} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748b" }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#64748b" }} />
               <Tooltip />
               <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                 {byStatusData.map((d, i) => <Cell key={i} fill={d.color} />)}
@@ -247,11 +245,11 @@ const Dashboard = () => {
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={byAssigneeData} layout="vertical" margin={{ left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e7e5e4" />
-                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#78716c" }} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#78716c" }} width={80} />
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#64748b" }} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#64748b" }} width={80} />
                 <Tooltip />
-                <Bar dataKey="count" fill={PALETTE.violet} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="count" fill={PALETTE.primary} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -265,12 +263,12 @@ const Dashboard = () => {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#78716c" }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#78716c" }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#64748b" }} />
                 <Tooltip />
-                <Area type="monotone" dataKey="incomplete" stackId="1" stroke={PALETTE.stone} fill={PALETTE.stoneLight} name="Incomplete" />
-                <Area type="monotone" dataKey="complete" stackId="1" stroke={PALETTE.emerald} fill="#a7f3d0" name="Complete" />
+                <Area type="monotone" dataKey="incomplete" stackId="1" stroke={PALETTE.slate} fill={PALETTE.slateLight} name="Incomplete" />
+                <Area type="monotone" dataKey="complete" stackId="1" stroke={PALETTE.primary} fill="#bfdbfe" name="Complete" />
               </AreaChart>
             </ResponsiveContainer>
           )}
@@ -282,7 +280,7 @@ const Dashboard = () => {
           <div className="rounded-xl border border-line bg-white">
             <div className="flex items-center justify-between border-b border-line px-5 py-3">
               <p className="text-sm font-semibold text-ink">Project progress</p>
-              <Link to="/projects" className="text-sm font-medium transition-colors" style={{ color: PALETTE.violet }}>View all →</Link>
+              <Link to="/projects" className="text-sm font-medium transition-colors" style={{ color: PALETTE.primary }}>View all →</Link>
             </div>
             {loading && (
               <div className="space-y-3 p-5">
@@ -304,7 +302,7 @@ const Dashboard = () => {
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-paper">
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: PALETTE.violet }} />
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: PALETTE.primary }} />
                         </div>
                         <span className="w-9 shrink-0 text-right text-xs text-ink-muted">{pct}%</span>
                       </div>
