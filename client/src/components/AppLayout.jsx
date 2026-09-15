@@ -206,6 +206,41 @@ const AppLayout = ({ title, children }) => {
       .slice(0, 2)
       .toUpperCase() || "U";
 
+  // Reusable icon components — replaces raw emoji (🔔, ♧) with clean line icons.
+  const BellIcon = () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  );
+
+  const MailIcon = () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+
   const NavLinks = ({ onNavigate }) => (
     <nav className="flex flex-col gap-1 px-3">
       {items.map((item) => {
@@ -244,7 +279,7 @@ const AppLayout = ({ title, children }) => {
       {/* Sidebar (desktop) */}
       <aside className="hidden w-60 shrink-0 border-r border-line bg-white md:flex md:flex-col">
         <Link to="/dashboard" className="flex items-center gap-2 px-5 py-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-blueprint to-marker text-sm font-bold text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink text-sm font-bold text-white">
             V
           </div>
           <span className="font-display text-lg font-bold tracking-tight text-ink">
@@ -280,7 +315,7 @@ const AppLayout = ({ title, children }) => {
                 onClick={() => setMobileNavOpen(false)}
                 className="flex items-center gap-2"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-blueprint to-marker text-sm font-bold text-white">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink text-sm font-bold text-white">
                   V
                 </div>
                 <span className="font-display text-lg font-bold tracking-tight text-ink">
@@ -423,7 +458,7 @@ const AppLayout = ({ title, children }) => {
               className="relative rounded-md p-2 text-ink-muted transition hover:bg-paper"
               title={notifUnread > 0 ? `${notifUnread} new notification(s)` : "No new notifications"}
             >
-              🔔
+              <BellIcon />
               {notifUnread > 0 && (
                 <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-marker px-1 text-[9px] font-bold text-white">
                   {notifUnread > 9 ? "9+" : notifUnread}
@@ -469,13 +504,13 @@ const AppLayout = ({ title, children }) => {
             )}
           </div>
 
-          {/* BELL — mirrors the Inbox unread count; click jumps to Inbox */}
+          {/* MAIL — mirrors the Inbox unread count; click jumps to Inbox */}
           <button
             onClick={() => navigate("/inbox")}
             className="relative rounded-md p-2 text-ink-muted transition hover:bg-paper"
             title={unreadCount > 0 ? `${unreadCount} unread message(s)` : "No new notifications"}
           >
-            ♧
+            <MailIcon />
             {unreadCount > 0 && (
               <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-marker px-1 text-[9px] font-bold text-white">
                 {unreadCount > 9 ? "9+" : unreadCount}
@@ -486,7 +521,7 @@ const AppLayout = ({ title, children }) => {
           <div className="relative">
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-blueprint to-marker text-xs font-bold text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-xs font-bold text-white"
             >
               {initials}
             </button>
