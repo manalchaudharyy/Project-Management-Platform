@@ -1,6 +1,7 @@
 const Comment = require("../models/Comment");
 const Task = require("../models/Task");
 const Project = require("../models/Project");
+const cloudinary = require("../config/cloudinary");
 
 // Shared access check: a user can view/comment on a task if they're an
 // admin, or they're the project's owner/a project member. This mirrors the
@@ -55,14 +56,37 @@ const createComment = async (req, res) => {
     }
 
     const { content } = req.body;
-    if (!content || !content.trim()) {
-      return res.status(400).json({ message: "Comment content is required" });
+    const hasFile = !!req.file;
+
+    // A comment needs content OR an attached file — not necessarily both
+    // (e.g. just dropping a file with no message).
+    if ((!content || !content.trim()) && !hasFile) {
+      return res.status(400).json({ message: "Comment content or an attachment is required" });
+    }
+
+    const attachments = [];
+    if (hasFile) {
+      const streamUpload = () =>
+        new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { folder: "comment_attachments" },
+            (error, result) => (result ? resolve(result) : reject(error))
+          );
+          stream.end(req.file.buffer);
+        });
+
+      const result = await streamUpload();
+      attachments.push({
+        filename: req.file.originalname,
+        url: result.secure_url,
+      });
     }
 
     const comment = await Comment.create({
-      content,
+      content: content || "",
       author: req.user.id,
       task: task._id,
+      attachments,
     });
     await comment.populate("author", "username");
 

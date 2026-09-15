@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import axiosClient from "../api/axiosClient";
 import AppLayout from "../components/AppLayout";
 import { StatusBadge } from "../components/Badge";
+import Calendar from "../components/Calendar";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell,
@@ -26,6 +27,12 @@ const Dashboard = () => {
   const [userCount, setUserCount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Calendar data: every task the user can see, with its project's name
+  // attached so the "all projects" view can show it in each chip's tooltip.
+  const [calendarTasks, setCalendarTasks] = useState([]);
+  const [calendarProjectId, setCalendarProjectId] = useState("all");
+  const [calendarLoading, setCalendarLoading] = useState(true);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -57,6 +64,33 @@ const Dashboard = () => {
             setUserCount(null);
           }
         }
+
+        // Tasks for the calendar — one call per project (same pattern as
+        // projectStats above), so each task can be tagged with its
+        // project's name for the "all projects" view.
+        // NOTE: GET /tasks is paginated ({ data, totalCount, ... }, default
+        // limit 20) — pass a high limit so a project with >20 tasks doesn't
+        // get silently truncated on the calendar.
+        try {
+          const taskEntries = await Promise.all(
+            list.map(async (p) => {
+              try {
+                const taskRes = await axiosClient.get(
+                  `/tasks?project=${p._id}&limit=1000`
+                );
+                const taskList = taskRes.data?.data || [];
+                return taskList.map((t) => ({ ...t, projectName: p.name }));
+              } catch {
+                return [];
+              }
+            })
+          );
+          setCalendarTasks(taskEntries.flat());
+        } catch {
+          setCalendarTasks([]);
+        } finally {
+          setCalendarLoading(false);
+        }
       } catch {
         setError("Could not load projects");
       } finally {
@@ -65,6 +99,11 @@ const Dashboard = () => {
     };
     fetchAll();
   }, [isAdmin]);
+
+  const visibleCalendarTasks =
+    calendarProjectId === "all"
+      ? calendarTasks
+      : calendarTasks.filter((t) => t.project === calendarProjectId || t.project?._id === calendarProjectId);
 
   // Aggregate totals across every project (same as before)
   const totals = Object.values(projectStats).reduce(
@@ -214,6 +253,30 @@ const Dashboard = () => {
             </ResponsiveContainer>
           )}
         </ChartCard>
+      </div>
+
+      {/* Calendar — task due dates, filterable to a single project */}
+      <div className="mb-8">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-ink">Calendar</h3>
+          <select
+            value={calendarProjectId}
+            onChange={(e) => setCalendarProjectId(e.target.value)}
+            className="rounded-md border border-line bg-white px-2.5 py-1.5 text-xs font-medium text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors"
+          >
+            <option value="all">All projects</option>
+            {projects.map((p) => (
+              <option key={p._id} value={p._id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {calendarLoading ? (
+          <div className="h-64 animate-pulse rounded-xl border border-line bg-paper" />
+        ) : (
+          <Calendar tasks={visibleCalendarTasks} />
+        )}
       </div>
 
       {/* Existing project list + quick actions, kept as-is below the charts */}

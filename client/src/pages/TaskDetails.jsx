@@ -7,6 +7,30 @@ import TaskBreakdown from "../components/TaskBreakdown";
 const selectClasses =
   "rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors";
 
+// Splits comment content on ```code``` fences and renders each segment —
+// fenced parts as monospace blocks, everything else as whitespace-preserving
+// plain text (so line breaks/indentation from the textarea aren't collapsed).
+const renderCommentContent = (content) => {
+  if (!content) return null;
+  const parts = content.split(/```([\s\S]*?)```/g);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <pre
+        key={i}
+        className="my-1.5 overflow-x-auto rounded-md bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100"
+      >
+        {part.replace(/^\n/, "").replace(/\n$/, "")}
+      </pre>
+    ) : (
+      part && (
+        <span key={i} className="whitespace-pre-wrap">
+          {part}
+        </span>
+      )
+    )
+  );
+};
+
 const TaskDetails = () => {
   const { id } = useParams();
   const currentUser = useSelector((state) => state.auth.user);
@@ -18,6 +42,8 @@ const TaskDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newComment, setNewComment] = useState("");
+  const [newCommentFile, setNewCommentFile] = useState(null);
+  const [postingComment, setPostingComment] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editCommentDraft, setEditCommentDraft] = useState("");
   const [editingDescription, setEditingDescription] = useState(false);
@@ -97,14 +123,42 @@ const TaskDetails = () => {
 
   const handleAddComment = async (e) => {
     e.preventDefault();
+    if (!newComment.trim() && !newCommentFile) return;
+
+    // A comment can carry a file, so it always goes over as multipart —
+    // simpler than branching between JSON and FormData based on whether a
+    // file was picked.
+    const formData = new FormData();
+    formData.append("content", newComment);
+    if (newCommentFile) {
+      formData.append("file", newCommentFile);
+    }
+
+    setPostingComment(true);
     try {
-      await axiosClient.post(`/tasks/${id}/comments`, { content: newComment });
+      await axiosClient.post(`/tasks/${id}/comments`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       setNewComment("");
+      setNewCommentFile(null);
       const res = await axiosClient.get(`/tasks/${id}/comments`);
       setComments(res.data);
     } catch (err) {
-      setError("Could not add comment");
+      setError(err.response?.data?.message || "Could not add comment");
+    } finally {
+      setPostingComment(false);
     }
+  };
+
+  const handleCommentFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File must be under 10MB");
+      e.target.value = "";
+      return;
+    }
+    setNewCommentFile(file);
   };
 
   const handleFileUpload = async (e) => {
@@ -337,21 +391,38 @@ const TaskDetails = () => {
 
 <h2 className="font-display text-lg font-semibold text-ink mb-4">Comments</h2>
 
-      <form onSubmit={handleAddComment} className="mb-5 flex gap-3">
-        <input
-          type="text"
-          placeholder="Write a comment"
+      <form onSubmit={handleAddComment} className="mb-5">
+        <textarea
+          placeholder="Write a comment… wrap code in ``` for a code block"
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
-          required
-          className="flex-1 rounded-md border border-line bg-panel px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors"
+          rows={3}
+          className="w-full rounded-md border border-line bg-panel px-3 py-2 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors resize-y"
         />
-        <button
-          type="submit"
-          className="rounded-md bg-blueprint px-4 py-2 text-sm font-medium text-white hover:bg-blueprint-dark transition-colors"
-        >
-          Post
-        </button>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <label className="cursor-pointer text-xs font-medium text-blueprint hover:text-marker">
+            {newCommentFile ? `📎 ${newCommentFile.name}` : "+ Attach file"}
+            <input type="file" onChange={handleCommentFileChange} className="hidden" />
+          </label>
+          <div className="flex items-center gap-2">
+            {newCommentFile && (
+              <button
+                type="button"
+                onClick={() => setNewCommentFile(null)}
+                className="text-xs font-medium text-ink-muted hover:text-priority-critical"
+              >
+                Remove
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={postingComment || (!newComment.trim() && !newCommentFile)}
+              className="rounded-md bg-blueprint px-4 py-2 text-sm font-medium text-white hover:bg-blueprint-dark transition-colors disabled:opacity-60"
+            >
+              {postingComment ? "Posting…" : "Post"}
+            </button>
+          </div>
+        </div>
       </form>
 
       {comments.length === 0 ? (
@@ -390,11 +461,11 @@ const TaskDetails = () => {
 
                 {isEditing ? (
                   <div className="flex gap-2">
-                    <input
-                      type="text"
+                    <textarea
                       value={editCommentDraft}
                       onChange={(e) => setEditCommentDraft(e.target.value)}
-                      className="flex-1 rounded-md border border-line bg-paper px-3 py-1.5 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors"
+                      rows={2}
+                      className="flex-1 rounded-md border border-line bg-paper px-3 py-1.5 text-sm text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors resize-y"
                     />
                     <button
                       onClick={() => handleUpdateComment(comment._id)}
@@ -410,7 +481,27 @@ const TaskDetails = () => {
                     </button>
                   </div>
                 ) : (
-                  <p className="text-sm text-ink">{comment.content}</p>
+                  <>
+                    {comment.content && (
+                      <div className="text-sm text-ink">{renderCommentContent(comment.content)}</div>
+                    )}
+                    {comment.attachments && comment.attachments.length > 0 && (
+                      <ul className="mt-1.5 space-y-1">
+                        {comment.attachments.map((att, idx) => (
+                          <li key={att._id || idx} className="text-sm">
+                            <a
+                              href={att.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blueprint hover:underline"
+                            >
+                              📎 {att.filename}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
                 )}
               </div>
             );

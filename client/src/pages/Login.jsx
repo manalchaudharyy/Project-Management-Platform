@@ -7,12 +7,17 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resendStatus, setResendStatus] = useState("");
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setNeedsVerification(false);
+    setResendStatus("");
 
     try {
       const res = await axiosClient.post("/auth/login", { email, password });
@@ -26,7 +31,22 @@ const Login = () => {
 
       navigate("/dashboard");
     } catch (err) {
-      setError("Invalid email or password");
+      if (err.response?.data?.code === "EMAIL_NOT_VERIFIED") {
+        setNeedsVerification(true);
+        setError(err.response.data.message);
+      } else {
+        setError("Invalid email or password");
+      }
+    }
+  };
+
+  const handleResend = async () => {
+    setResendStatus("Sending…");
+    try {
+      const res = await axiosClient.post("/auth/resend-verification", { email });
+      setResendStatus(res.data.message);
+    } catch {
+      setResendStatus("Could not resend right now — try again shortly.");
     }
   };
 
@@ -111,6 +131,20 @@ const Login = () => {
           {error && (
             <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
               {error}
+              {needsVerification && (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    className="font-semibold text-blueprint hover:text-blueprint-dark"
+                  >
+                    Resend verification email
+                  </button>
+                  {resendStatus && (
+                    <p className="mt-1 text-xs text-slate-500">{resendStatus}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

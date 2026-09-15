@@ -44,6 +44,9 @@ const createUser = async (req, res) => {
       email,
       password: hashedPassword,
       role: finalRole,
+      // An admin/PM creating this account directly is vouching for the
+      // email address — no verification link needed.
+      isVerified: true,
     });
 
     res.status(201).json({
@@ -56,6 +59,32 @@ const createUser = async (req, res) => {
     console.error("Create user error:", error.message);
     res.status(500).json({ message: "Server error creating user" });
   }
+};
+
+// Shared helper: generates a raw verification token, stores only its hash
+// on the user (mirrors the reset-password pattern), and emails the raw
+// token as a link. Used by both register and resendVerification.
+const issueVerificationEmail = async (user) => {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  user.emailVerificationToken = hashedToken;
+  user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+  await user.save();
+
+  const frontendUrl = (process.env.CLIENT_URL || "http://localhost:5173")
+    .split(",")[0]
+    .trim();
+  const verifyUrl = `${frontendUrl}/verify-email/${rawToken}`;
+
+  await sendEmail({
+    to: user.email,
+    subject: "Verify your email",
+    html: `<p>Hi ${user.username},</p>
+           <p>Click the link below to verify your email address. This link expires in 24 hours.</p>
+           <p><a href="${verifyUrl}">${verifyUrl}</a></p>
+           <p>If you didn't create this account, you can safely ignore this email.</p>`,
+  });
 };
 
 // POST /api/auth/register — public self-signup.
@@ -92,18 +121,16 @@ const register = async (req, res) => {
       email,
       password: hashedPassword,
       role: "member",
+      isVerified: false,
     });
 
-    const token = generateToken(user._id, user.role);
+    // No token, no auto-login: the account can't be used until the emailed
+    // link is clicked.
+    await issueVerificationEmail(user);
 
     res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
+      message: "Account created. Check your email for a verification link before signing in.",
+      email: user.email,
     });
   } catch (error) {
     if (error.name === "ValidationError") {
@@ -130,6 +157,15 @@ const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    if (!user.isVerified) {
+      // 403 (not 401) so the frontend can tell "wrong password" apart from
+      // "right password, unverified account" and offer a resend option.
+      return res.status(403).json({
+        message: "Please verify your email before signing in.",
+        code: "EMAIL_NOT_VERIFIED",
+      });
     }
 
     const token = generateToken(user._id, user.role);
@@ -317,6 +353,66 @@ if (newPassword === currentPassword) {
   }
 };
 
+// GET /api/auth/verify-email/:token
+const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      emailVerificationToken: hashedToken,
+      emailVerificationExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Verification link is invalid or has expired" });
+    }
+
+    if (user.isVerified) {
+      user.emailVerificationToken = undefined;
+      user.emailVerificationExpires = undefined;
+      await user.save();
+      return res.status(200).json({ message: "Email already verified. You can log in." });
+    }
+
+    user.isVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Email verified successfully. You can now log in." });
+  } catch (error) {
+    console.error("Verify email error:", error.message);
+    res.status(500).json({ message: "Server error verifying email" });
+  }
+};
+
+// POST /api/auth/resend-verification
+const resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    // Same generic-message pattern as forgotPassword — don't reveal
+    // whether the email exists.
+    const genericMessage = "If an account with that email exists and isn't verified yet, a new verification link has been sent.";
+
+    const user = await User.findOne({ email });
+    if (!user || user.isVerified) {
+      return res.status(200).json({ message: genericMessage });
+    }
+
+    await issueVerificationEmail(user);
+
+    res.status(200).json({ message: genericMessage });
+  } catch (error) {
+    console.error("Resend verification error:", error.message);
+    res.status(500).json({ message: "Server error resending verification email" });
+  }
+};
+
 module.exports = {
   createUser,
   register,
@@ -327,4 +423,6 @@ module.exports = {
   forgotPassword,
   resetPassword,
   changePassword,
+  verifyEmail,
+  resendVerification,
 };

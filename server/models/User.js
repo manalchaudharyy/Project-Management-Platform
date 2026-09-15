@@ -27,6 +27,22 @@ const userSchema = new mongoose.Schema({
    resetPasswordExpires: {
     type: Date,
   },
+   // Self-registered accounts start unverified and can't log in until they
+   // click the emailed link. Admin-created accounts and the seeded admin
+   // are created with isVerified already true, since an admin vouching for
+   // the account is enough.
+   isVerified: {
+    type: Boolean,
+    default: false,
+  },
+   // Same pattern as resetPasswordToken — raw token emailed, only the hash
+   // stored, cleared once used or replaced by a resend.
+   emailVerificationToken: {
+    type: String,
+  },
+   emailVerificationExpires: {
+    type: Date,
+  },
  
 }, { timestamps: true });
 

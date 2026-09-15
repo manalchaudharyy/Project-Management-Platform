@@ -20,7 +20,13 @@ router.get("/:id", protect, validateObjectId("id"), getTaskById);
 router.put("/:id", protect, validateObjectId("id"), updateTask);
 router.delete("/:id", protect, validateObjectId("id"), deleteTask);
 router.get("/:taskId/comments", protect, validateObjectId("taskId"), getComments);
-router.post("/:taskId/comments", protect, validateObjectId("taskId"), createComment);
+router.post(
+  "/:taskId/comments",
+  protect,
+  validateObjectId("taskId"),
+  upload.single("file"),
+  createComment
+);
 
 // 👇 add ye
 router.post(

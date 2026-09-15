@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
 import axiosClient from "../api/axiosClient";
-import { setCredentials } from "../store/authSlice";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const Register = () => {
   const [username, setUsername] = useState("");
@@ -11,9 +9,9 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
+  // Set to the registered email once the account is created — switches the
+  // form over to a "check your email" screen instead of auto-logging in.
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,14 +30,7 @@ const Register = () => {
         password,
       });
 
-      dispatch(
-        setCredentials({
-          user: res.data.user,
-          token: res.data.token,
-        })
-      );
-
-      navigate("/dashboard");
+      setRegisteredEmail(res.data.email || email);
     } catch (err) {
       setError(err.response?.data?.message || "Could not create account. Try again.");
     } finally {
@@ -100,86 +91,103 @@ const Register = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-                {error}
+          {registeredEmail ? (
+            <div className="space-y-5">
+              <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700">
+                We've sent a verification link to <strong>{registeredEmail}</strong>. Click it
+                to activate your account — the link expires in 24 hours.
               </div>
-            )}
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Username
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                placeholder="Jane Doe"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blueprint focus:bg-white focus:ring-4 focus:ring-blueprint/10"
-              />
+              <Link
+                to="/login"
+                className="block w-full rounded-xl bg-blueprint py-3.5 text-center text-sm font-semibold text-white shadow-lg shadow-blueprint/20 transition hover:bg-blueprint-dark hover:shadow-xl"
+              >
+                Back to sign in
+              </Link>
             </div>
+          ) : (
+            <>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {error && (
+                  <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                    {error}
+                  </div>
+                )}
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Email address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blueprint focus:bg-white focus:ring-4 focus:ring-blueprint/10"
-              />
-            </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    placeholder="Jane Doe"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blueprint focus:bg-white focus:ring-4 focus:ring-blueprint/10"
+                  />
+                </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                placeholder="At least 6 characters"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blueprint focus:bg-white focus:ring-4 focus:ring-blueprint/10"
-              />
-            </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Email address
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="you@example.com"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blueprint focus:bg-white focus:ring-4 focus:ring-blueprint/10"
+                  />
+                </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Confirm password
-              </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                minLength={6}
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blueprint focus:bg-white focus:ring-4 focus:ring-blueprint/10"
-              />
-            </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    placeholder="At least 6 characters"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blueprint focus:bg-white focus:ring-4 focus:ring-blueprint/10"
+                  />
+                </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-blueprint py-3.5 text-sm font-semibold text-white shadow-lg shadow-blueprint/20 transition hover:bg-blueprint-dark hover:shadow-xl disabled:opacity-60"
-            >
-              {loading ? "Creating account…" : "Create account →"}
-            </button>
-          </form>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Confirm password
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    placeholder="••••••••"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blueprint focus:bg-white focus:ring-4 focus:ring-blueprint/10"
+                  />
+                </div>
 
-          <p className="mt-8 text-center text-sm text-slate-500">
-            Already have an account?{" "}
-            <Link to="/login" className="font-semibold text-blueprint hover:text-blueprint-dark">
-              Sign in
-            </Link>
-          </p>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-xl bg-blueprint py-3.5 text-sm font-semibold text-white shadow-lg shadow-blueprint/20 transition hover:bg-blueprint-dark hover:shadow-xl disabled:opacity-60"
+                >
+                  {loading ? "Creating account…" : "Create account →"}
+                </button>
+              </form>
+
+              <p className="mt-8 text-center text-sm text-slate-500">
+                Already have an account?{" "}
+                <Link to="/login" className="font-semibold text-blueprint hover:text-blueprint-dark">
+                  Sign in
+                </Link>
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>

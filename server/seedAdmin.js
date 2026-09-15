@@ -26,6 +26,7 @@ const run = async () => {
     email: ADMIN.email,
     password: hashedPassword,
     role: "admin",
+    isVerified: true,
   });
 
   console.log("Admin created:", admin.email);
