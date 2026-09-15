@@ -10,25 +10,71 @@ const selectClasses =
 // Splits comment content on ```code``` fences and renders each segment —
 // fenced parts as monospace blocks, everything else as whitespace-preserving
 // plain text (so line breaks/indentation from the textarea aren't collapsed).
+// Heuristic: decides whether a chunk of comment text "looks like code" so it
+// can be auto-formatted even when the user didn't wrap it in ``` fences.
+// Not perfect — just checks for multiple lines + code-ish signals (braces,
+// semicolons, indentation, common keywords).
+const looksLikeCode = (text) => {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+
+  const lines = trimmed.split("\n");
+  const symbolCount = (trimmed.match(/[{}();=<>[\]]/g) || []).length;
+  const symbolDensity = symbolCount / trimmed.length;
+
+  const hasKeyword =
+    /\b(function|const|let|var|class|import|export|return|if|else|for|while|def|print|console\.|=>|#include|public|private|static)\b/.test(
+      trimmed
+    );
+  const hasIndentedLine = lines.some((l) => /^(\s{2,}|\t)/.test(l));
+  const multiLine = lines.length > 1;
+
+  // Multi-line + at least one strong signal, OR single line that's dense
+  // with code symbols and a keyword (e.g. "const x = 5;").
+  return (
+    (multiLine && (hasKeyword || hasIndentedLine || symbolDensity > 0.04)) ||
+    (hasKeyword && symbolDensity > 0.08)
+  );
+};
+
+// Splits comment content on ```code``` fences and renders each segment —
+// fenced parts as monospace blocks, everything else as whitespace-preserving
+// plain text (so line breaks/indentation from the textarea aren't collapsed).
+// Non-fenced segments that "look like code" (see looksLikeCode above) are
+// also rendered as monospace blocks, so backticks are optional.
 const renderCommentContent = (content) => {
   if (!content) return null;
   const parts = content.split(/```([\s\S]*?)```/g);
-  return parts.map((part, i) =>
-    i % 2 === 1 ? (
-      <pre
-        key={i}
-        className="my-1.5 overflow-x-auto rounded-md bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100"
-      >
-        {part.replace(/^\n/, "").replace(/\n$/, "")}
-      </pre>
-    ) : (
-      part && (
-        <span key={i} className="whitespace-pre-wrap">
-          {part}
-        </span>
-      )
-    )
-  );
+  return parts.map((part, i) => {
+    if (i % 2 === 1) {
+      // Explicit ```fenced``` code block
+      return (
+        <pre
+          key={i}
+          className="my-1.5 overflow-x-auto rounded-md bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100"
+        >
+          {part.replace(/^\n/, "").replace(/\n$/, "")}
+        </pre>
+      );
+    }
+    if (!part) return null;
+    if (looksLikeCode(part)) {
+      // Auto-detected code, no backticks needed
+      return (
+        <pre
+          key={i}
+          className="my-1.5 overflow-x-auto rounded-md bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100"
+        >
+          {part.trim()}
+        </pre>
+      );
+    }
+    return (
+      <span key={i} className="whitespace-pre-wrap">
+        {part}
+      </span>
+    );
+  });
 };
 
 const TaskDetails = () => {
