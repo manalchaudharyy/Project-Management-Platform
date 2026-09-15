@@ -17,6 +17,15 @@ const AppLayout = ({ title, children }) => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("darkMode") === "true";
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+    localStorage.setItem("darkMode", darkMode ? "true" : "false");
+  }, [darkMode]);
+
   // Project-assignment notifications (separate from chat/inbox unread).
   const [notifications, setNotifications] = useState([]);
   const [notifUnread, setNotifUnread] = useState(0);
@@ -450,7 +459,49 @@ const AppLayout = ({ title, children }) => {
               </div>
             )}
           </div>
-
+            <button
+  onClick={() => setDarkMode((value) => !value)}
+  className="rounded-md p-2 text-ink-muted transition hover:bg-paper hover:text-ink"
+  title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+>
+  {darkMode ? (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2" />
+      <path d="M12 20v2" />
+      <path d="m4.93 4.93 1.41 1.41" />
+      <path d="m17.66 17.66 1.41 1.41" />
+      <path d="M2 12h2" />
+      <path d="M20 12h2" />
+      <path d="m6.34 17.66-1.41 1.41" />
+      <path d="m19.07 4.93-1.41 1.41" />
+    </svg>
+  ) : (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  )}
+</button>
           {/* NOTIFICATION BELL — project assign/remove alerts, separate from chat */}
           <div className="relative" ref={notifBoxRef}>
             <button
