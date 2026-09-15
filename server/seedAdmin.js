@@ -3,19 +3,29 @@ const bcrypt = require("bcryptjs");
 const connectDB = require("./config/db");
 const User = require("./models/User");
 
+const OLD_ADMIN_EMAIL = "manalch@gmail.com";
+
 const ADMIN = {
   username: "manal",
-  email: "manalch@gmail.com", 
-  password: "qwert_y",    
+  email: "manalch4015@gmail.com",
+  password: "qwerty123",
 };
 
 const run = async () => {
   await connectDB();
 
-  const existing = await User.findOne({ email: ADMIN.email });
-  if (existing) {
-    console.log("A user with this email already exists:", existing.email, "role:", existing.role);
-    process.exit(0);
+  // Delete the old admin account if it exists
+  const deleted = await User.deleteOne({ email: OLD_ADMIN_EMAIL });
+  if (deleted.deletedCount > 0) {
+    console.log("Deleted old admin:", OLD_ADMIN_EMAIL);
+  } else {
+    console.log("No old admin found with email:", OLD_ADMIN_EMAIL);
+  }
+
+  // Delete any existing account with the target email so we can recreate it as admin
+  const deletedExisting = await User.deleteOne({ email: ADMIN.email });
+  if (deletedExisting.deletedCount > 0) {
+    console.log("Deleted existing account:", ADMIN.email);
   }
 
   const salt = await bcrypt.genSalt(10);
@@ -29,7 +39,7 @@ const run = async () => {
     isVerified: true,
   });
 
-  console.log("Admin created:", admin.email);
+  console.log("New admin created:", admin.email);
   process.exit(0);
 };
 
