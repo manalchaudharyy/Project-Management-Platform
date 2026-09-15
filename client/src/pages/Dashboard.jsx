@@ -5,17 +5,20 @@ import axiosClient from "../api/axiosClient";
 import AppLayout from "../components/AppLayout";
 import { StatusBadge } from "../components/Badge";
 import Calendar from "../components/Calendar";
+import TodoWidget from "../components/TodoWidget";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell,
   AreaChart, Area, ResponsiveContainer,
 } from "recharts";
 
+// Monochrome scale — one ink tone stepped down in weight, instead of a
+// different hue per status. Keeps the charts calm and on-brand.
 const STATUS_SEGMENTS = [
-  { key: "done", label: "Done", color: "#059669" },
-  { key: "in-progress", label: "In progress", color: "#b45309" },
-  { key: "review", label: "Review", color: "#7c3aed" },
-  { key: "todo", label: "To do", color: "#a8a29e" },
+  { key: "done", label: "Done", color: "#1c1917" },
+  { key: "in-progress", label: "In progress", color: "#78716c" },
+  { key: "review", label: "Review", color: "#a8a29e" },
+  { key: "todo", label: "To do", color: "#d6d3d1" },
 ];
 
 const Dashboard = () => {
@@ -67,7 +70,9 @@ const Dashboard = () => {
 
         // Tasks for the calendar — one call per project (same pattern as
         // projectStats above), so each task can be tagged with its
-        // project's name for the "all projects" view.
+        // project's name for the "all projects" view. The assignee comes
+        // straight through from the API response (t.assignee), so Calendar
+        // can render it per day without any extra fetching.
         // NOTE: GET /tasks is paginated ({ data, totalCount, ... }, default
         // limit 20) — pass a high limit so a project with >20 tasks doesn't
         // get silently truncated on the calendar.
@@ -130,10 +135,10 @@ const Dashboard = () => {
     color: s.color,
   }));
 
- const donutData = [
-  { name: "Complete", value: totals.done, color: "#7c5cff" },
-  { name: "Incomplete", value: totals.total - totals.done, color: "#e7e5e4" },
-];
+  const donutData = [
+    { name: "Complete", value: totals.done, color: "#1c1917" },
+    { name: "Incomplete", value: totals.total - totals.done, color: "#e7e5e4" },
+  ];
 
   // Bar chart data: tasks by assignee, merged across projects
   const assigneeMap = {};
@@ -162,35 +167,64 @@ const Dashboard = () => {
           Overview
         </h2>
         {isAdmin && (
-          <p className="mt-1 text-xs font-mono uppercase tracking-widest text-marker">
+          <p className="mt-1 text-xs font-mono uppercase tracking-widest text-ink-muted">
             Admin view — every project on the platform
           </p>
         )}
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">{error}</div>
+        <div className="mb-4 rounded-md border border-line bg-white p-3 text-sm text-priority-critical">
+          {error}
+        </div>
       )}
 
-      {/* Top stat row — matches the 4 numbers in the Asana screenshot */}
-     <div className={`mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4 ${isAdmin ? "lg:grid-cols-5" : ""}`}>
-  <StatCard index={0} value={totals.done} label="Completed tasks" />
-  <StatCard index={1} value={totals.total - totals.done} label="Incomplete tasks" />
-  <StatCard index={2} value={totals.overdue} label="Overdue tasks" accent={totals.overdue ? "text-priority-critical" : "text-ink"} />
-  <StatCard index={3} value={totals.total} label="Total tasks" />
-  {isAdmin && (
-    <StatCard index={4} value={userCount ?? "—"} label="Registered users" />
-  )}
-</div>
+      {/* Calendar + to-do, front and center */}
+      <div className="mb-8 grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-ink">Calendar</h3>
+            <select
+              value={calendarProjectId}
+              onChange={(e) => setCalendarProjectId(e.target.value)}
+              className="rounded-md border border-line bg-white px-2.5 py-1.5 text-xs font-medium text-ink outline-none transition-colors focus:border-blueprint focus:ring-2 focus:ring-blueprint/20"
+            >
+              <option value="all">All projects</option>
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {calendarLoading ? (
+            <div className="h-64 animate-pulse rounded-xl border border-line bg-paper" />
+          ) : (
+            // Calendar renders t.assignee per task chip — see Calendar.jsx.
+            <Calendar tasks={visibleCalendarTasks} showAssignee />
+          )}
+        </div>
+
+        <TodoWidget />
+      </div>
+
+      {/* Top stat row — plain numbers, no icon badges */}
+      <div className={`mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4 ${isAdmin ? "lg:grid-cols-5" : ""}`}>
+        <StatCard value={totals.done} label="Completed tasks" />
+        <StatCard value={totals.total - totals.done} label="Incomplete tasks" />
+        <StatCard value={totals.overdue} label="Overdue tasks" accent={totals.overdue ? "text-priority-critical" : "text-ink"} />
+        <StatCard value={totals.total} label="Total tasks" />
+        {isAdmin && <StatCard value={userCount ?? "—"} label="Registered users" />}
+      </div>
 
       {/* 3-chart row */}
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <ChartCard title="Tasks by status">
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={byStatusData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#78716c" }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#78716c" }} />
               <Tooltip />
               <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                 {byStatusData.map((d, i) => <Cell key={i} fill={d.color} />)}
@@ -202,9 +236,9 @@ const Dashboard = () => {
         <ChartCard title="Completion status">
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
-             <Pie data={donutData} dataKey="value" innerRadius={55} outerRadius={80} paddingAngle={2}>
-  {donutData.map((d, i) => <Cell key={i} fill={d.color} />)}
-</Pie>
+              <Pie data={donutData} dataKey="value" innerRadius={55} outerRadius={80} paddingAngle={2}>
+                {donutData.map((d, i) => <Cell key={i} fill={d.color} />)}
+              </Pie>
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
@@ -224,11 +258,11 @@ const Dashboard = () => {
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={byAssigneeData} layout="vertical" margin={{ left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={80} />
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e7e5e4" />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#78716c" }} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#78716c" }} width={80} />
                 <Tooltip />
-                <Bar dataKey="count" fill="#7c5cff" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="count" fill="#44403c" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -243,49 +277,25 @@ const Dashboard = () => {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#78716c" }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#78716c" }} />
                 <Tooltip />
-                <Area type="monotone" dataKey="incomplete" stackId="1" stroke="#a8a29e" fill="#e7e5e4" name="Incomplete" />
-                <Area type="monotone" dataKey="complete" stackId="1" stroke="#7c5cff" fill="#c4b5fd" name="Complete" />
+                <Area type="monotone" dataKey="incomplete" stackId="1" stroke="#d6d3d1" fill="#f5f5f4" name="Incomplete" />
+                <Area type="monotone" dataKey="complete" stackId="1" stroke="#1c1917" fill="#a8a29e" name="Complete" />
               </AreaChart>
             </ResponsiveContainer>
           )}
         </ChartCard>
       </div>
 
-      {/* Calendar — task due dates, filterable to a single project */}
-      <div className="mb-8">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-ink">Calendar</h3>
-          <select
-            value={calendarProjectId}
-            onChange={(e) => setCalendarProjectId(e.target.value)}
-            className="rounded-md border border-line bg-white px-2.5 py-1.5 text-xs font-medium text-ink outline-none focus:ring-2 focus:ring-blueprint/30 focus:border-blueprint transition-colors"
-          >
-            <option value="all">All projects</option>
-            {projects.map((p) => (
-              <option key={p._id} value={p._id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        {calendarLoading ? (
-          <div className="h-64 animate-pulse rounded-xl border border-line bg-paper" />
-        ) : (
-          <Calendar tasks={visibleCalendarTasks} />
-        )}
-      </div>
-
       {/* Existing project list + quick actions, kept as-is below the charts */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <div className="rounded-xl border border-line bg-white shadow-card">
+          <div className="rounded-xl border border-line bg-white">
             <div className="flex items-center justify-between border-b border-line px-5 py-3">
               <p className="text-sm font-semibold text-ink">Project progress</p>
-              <Link to="/projects" className="text-sm font-medium text-marker hover:underline">View all →</Link>
+              <Link to="/projects" className="text-sm font-medium text-ink-muted transition-colors hover:text-ink">View all →</Link>
             </div>
             {loading && (
               <div className="space-y-3 p-5">
@@ -307,7 +317,7 @@ const Dashboard = () => {
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-paper">
-                          <div className="h-full rounded-full bg-marker" style={{ width: `${pct}%` }} />
+                          <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
                         </div>
                         <span className="w-9 shrink-0 text-right text-xs text-ink-muted">{pct}%</span>
                       </div>
@@ -320,7 +330,7 @@ const Dashboard = () => {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-xl border border-line bg-white shadow-card">
+          <div className="rounded-xl border border-line bg-white">
             <div className="border-b border-line px-4 py-3">
               <p className="text-sm font-semibold text-ink">Quick actions</p>
             </div>
@@ -338,29 +348,15 @@ const Dashboard = () => {
   );
 };
 
-const STAT_STYLES = [
-  { icon: "✓", bg: "bg-emerald-100", color: "text-emerald-600" },
-  { icon: "◷", bg: "bg-amber-100", color: "text-amber-600" },
-  { icon: "!", bg: "bg-rose-100", color: "text-rose-600" },
-  { icon: "▤", bg: "bg-violet-100", color: "text-violet-600" },
-  { icon: "◎", bg: "bg-sky-100", color: "text-sky-600" },
-];
-
-const StatCard = ({ value, label, index = 0, accent = "text-ink" }) => {
-  const style = STAT_STYLES[index] || STAT_STYLES[0];
-  return (
-    <div className="rounded-xl border border-line bg-white p-4 shadow-card">
-      <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${style.bg} ${style.color} text-sm font-bold`}>
-        {style.icon}
-      </div>
-      <p className={`font-display text-3xl font-bold tracking-tight ${accent}`}>{value}</p>
-      <p className="mt-1 text-xs text-ink-muted">{label}</p>
-    </div>
-  );
-};
+const StatCard = ({ value, label, accent = "text-ink" }) => (
+  <div className="rounded-xl border border-line bg-white p-4">
+    <p className={`font-display text-3xl font-bold tracking-tight ${accent}`}>{value}</p>
+    <p className="mt-1 text-xs text-ink-muted">{label}</p>
+  </div>
+);
 
 const ChartCard = ({ title, children }) => (
-  <div className="rounded-xl border border-line bg-white p-4 shadow-card">
+  <div className="rounded-xl border border-line bg-white p-4">
     <p className="mb-3 text-sm font-semibold text-ink">{title}</p>
     {children}
   </div>
