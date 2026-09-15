@@ -5,20 +5,29 @@ import axiosClient from "../api/axiosClient";
 import AppLayout from "../components/AppLayout";
 import { StatusBadge } from "../components/Badge";
 import Calendar from "../components/Calendar";
-import TodoWidget from "../components/TodoWidget";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell,
   AreaChart, Area, ResponsiveContainer,
 } from "recharts";
 
-// Monochrome scale — one ink tone stepped down in weight, instead of a
-// different hue per status. Keeps the charts calm and on-brand.
+// A small, deliberate palette — one hue per meaning, not a rainbow.
+// Emerald = done/positive, amber = in motion, violet = the "featured"
+// accent, rose = needs attention, stone = neutral/empty. No blue.
+export const PALETTE = {
+  emerald: "#059669",
+  amber: "#d97706",
+  violet: "#7c3aed",
+  rose: "#e11d48",
+  stone: "#78716c",
+  stoneLight: "#e7e5e4",
+};
+
 const STATUS_SEGMENTS = [
-  { key: "done", label: "Done", color: "#1c1917" },
-  { key: "in-progress", label: "In progress", color: "#78716c" },
-  { key: "review", label: "Review", color: "#a8a29e" },
-  { key: "todo", label: "To do", color: "#d6d3d1" },
+  { key: "done", label: "Done", color: PALETTE.emerald },
+  { key: "in-progress", label: "In progress", color: PALETTE.amber },
+  { key: "review", label: "Review", color: PALETTE.violet },
+  { key: "todo", label: "To do", color: PALETTE.stone },
 ];
 
 const Dashboard = () => {
@@ -31,8 +40,6 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Calendar data: every task the user can see, with its project's name
-  // attached so the "all projects" view can show it in each chip's tooltip.
   const [calendarTasks, setCalendarTasks] = useState([]);
   const [calendarProjectId, setCalendarProjectId] = useState("all");
   const [calendarLoading, setCalendarLoading] = useState(true);
@@ -56,9 +63,6 @@ const Dashboard = () => {
         );
         setProjectStats(Object.fromEntries(statsEntries));
 
-        // Admins get a workspace-wide "how many people are on the platform"
-        // number alongside the project stats. Members/PMs don't see this —
-        // it's not their data to browse.
         if (isAdmin) {
           try {
             const usersRes = await axiosClient.get("/users");
@@ -68,14 +72,6 @@ const Dashboard = () => {
           }
         }
 
-        // Tasks for the calendar — one call per project (same pattern as
-        // projectStats above), so each task can be tagged with its
-        // project's name for the "all projects" view. The assignee comes
-        // straight through from the API response (t.assignee), so Calendar
-        // can render it per day without any extra fetching.
-        // NOTE: GET /tasks is paginated ({ data, totalCount, ... }, default
-        // limit 20) — pass a high limit so a project with >20 tasks doesn't
-        // get silently truncated on the calendar.
         try {
           const taskEntries = await Promise.all(
             list.map(async (p) => {
@@ -110,7 +106,6 @@ const Dashboard = () => {
       ? calendarTasks
       : calendarTasks.filter((t) => t.project === calendarProjectId || t.project?._id === calendarProjectId);
 
-  // Aggregate totals across every project (same as before)
   const totals = Object.values(projectStats).reduce(
     (acc, s) => {
       if (!s) return acc;
@@ -125,7 +120,6 @@ const Dashboard = () => {
     { total: 0, done: 0, inProgress: 0, review: 0, todo: 0, overdue: 0 }
   );
 
-  // Bar chart data: tasks by status
   const byStatusData = STATUS_SEGMENTS.map((s) => ({
     name: s.label,
     count:
@@ -136,11 +130,10 @@ const Dashboard = () => {
   }));
 
   const donutData = [
-    { name: "Complete", value: totals.done, color: "#1c1917" },
-    { name: "Incomplete", value: totals.total - totals.done, color: "#e7e5e4" },
+    { name: "Complete", value: totals.done, color: PALETTE.emerald },
+    { name: "Incomplete", value: totals.total - totals.done, color: PALETTE.stoneLight },
   ];
 
-  // Bar chart data: tasks by assignee, merged across projects
   const assigneeMap = {};
   Object.values(projectStats).forEach((s) => {
     (s?.tasksByAssignee || []).forEach((a) => {
@@ -149,7 +142,6 @@ const Dashboard = () => {
   });
   const byAssigneeData = Object.entries(assigneeMap).map(([name, count]) => ({ name, count }));
 
-  // Area chart data: completion trend, merged day-by-day across projects
   const trendMap = {};
   Object.values(projectStats).forEach((s) => {
     (s?.completionTrend || []).forEach((t) => {
@@ -174,50 +166,47 @@ const Dashboard = () => {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md border border-line bg-white p-3 text-sm text-priority-critical">
+        <div className="mb-4 rounded-md border border-line bg-white p-3 text-sm" style={{ color: PALETTE.rose }}>
           {error}
         </div>
       )}
 
-      {/* Calendar + to-do, front and center */}
-      <div className="mb-8 grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-ink">Calendar</h3>
-            <select
-              value={calendarProjectId}
-              onChange={(e) => setCalendarProjectId(e.target.value)}
-              className="rounded-md border border-line bg-white px-2.5 py-1.5 text-xs font-medium text-ink outline-none transition-colors focus:border-blueprint focus:ring-2 focus:ring-blueprint/20"
-            >
-              <option value="all">All projects</option>
-              {projects.map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          {calendarLoading ? (
-            <div className="h-64 animate-pulse rounded-xl border border-line bg-paper" />
-          ) : (
-            // Calendar renders t.assignee per task chip — see Calendar.jsx.
-            <Calendar tasks={visibleCalendarTasks} showAssignee />
-          )}
+      {/* Calendar, front and center — to-do is built into it (hover any
+          day for the "+", or use the panel under the grid). */}
+      <div className="mb-8">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-ink">Calendar</h3>
+          <select
+            value={calendarProjectId}
+            onChange={(e) => setCalendarProjectId(e.target.value)}
+            className="rounded-md border border-line bg-white px-2.5 py-1.5 text-xs font-medium text-ink outline-none transition-colors"
+            style={{ colorScheme: "light" }}
+            onFocus={(e) => (e.target.style.borderColor = PALETTE.violet)}
+            onBlur={(e) => (e.target.style.borderColor = "")}
+          >
+            <option value="all">All projects</option>
+            {projects.map((p) => (
+              <option key={p._id} value={p._id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
         </div>
-
-        <TodoWidget />
+        {calendarLoading ? (
+          <div className="h-64 animate-pulse rounded-xl border border-line bg-paper" />
+        ) : (
+          <Calendar tasks={visibleCalendarTasks} showAssignee />
+        )}
       </div>
 
-      {/* Top stat row — plain numbers, no icon badges */}
       <div className={`mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4 ${isAdmin ? "lg:grid-cols-5" : ""}`}>
-        <StatCard value={totals.done} label="Completed tasks" />
-        <StatCard value={totals.total - totals.done} label="Incomplete tasks" />
-        <StatCard value={totals.overdue} label="Overdue tasks" accent={totals.overdue ? "text-priority-critical" : "text-ink"} />
-        <StatCard value={totals.total} label="Total tasks" />
-        {isAdmin && <StatCard value={userCount ?? "—"} label="Registered users" />}
+        <StatCard value={totals.done} label="Completed tasks" dot={PALETTE.emerald} />
+        <StatCard value={totals.total - totals.done} label="Incomplete tasks" dot={PALETTE.amber} />
+        <StatCard value={totals.overdue} label="Overdue tasks" dot={PALETTE.rose} accent={totals.overdue ? "text-priority-critical" : "text-ink"} />
+        <StatCard value={totals.total} label="Total tasks" dot={PALETTE.violet} />
+        {isAdmin && <StatCard value={userCount ?? "—"} label="Registered users" dot={PALETTE.stone} />}
       </div>
 
-      {/* 3-chart row */}
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <ChartCard title="Tasks by status">
           <ResponsiveContainer width="100%" height={200}>
@@ -262,14 +251,13 @@ const Dashboard = () => {
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#78716c" }} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#78716c" }} width={80} />
                 <Tooltip />
-                <Bar dataKey="count" fill="#44403c" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="count" fill={PALETTE.violet} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
         </ChartCard>
       </div>
 
-      {/* Trend chart, full width */}
       <div className="mb-8">
         <ChartCard title="Task completion over time (last 14 days)">
           {trendData.length === 0 ? (
@@ -281,21 +269,20 @@ const Dashboard = () => {
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#78716c" }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#78716c" }} />
                 <Tooltip />
-                <Area type="monotone" dataKey="incomplete" stackId="1" stroke="#d6d3d1" fill="#f5f5f4" name="Incomplete" />
-                <Area type="monotone" dataKey="complete" stackId="1" stroke="#1c1917" fill="#a8a29e" name="Complete" />
+                <Area type="monotone" dataKey="incomplete" stackId="1" stroke={PALETTE.stone} fill={PALETTE.stoneLight} name="Incomplete" />
+                <Area type="monotone" dataKey="complete" stackId="1" stroke={PALETTE.emerald} fill="#a7f3d0" name="Complete" />
               </AreaChart>
             </ResponsiveContainer>
           )}
         </ChartCard>
       </div>
 
-      {/* Existing project list + quick actions, kept as-is below the charts */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <div className="rounded-xl border border-line bg-white">
             <div className="flex items-center justify-between border-b border-line px-5 py-3">
               <p className="text-sm font-semibold text-ink">Project progress</p>
-              <Link to="/projects" className="text-sm font-medium text-ink-muted transition-colors hover:text-ink">View all →</Link>
+              <Link to="/projects" className="text-sm font-medium transition-colors" style={{ color: PALETTE.violet }}>View all →</Link>
             </div>
             {loading && (
               <div className="space-y-3 p-5">
@@ -317,7 +304,7 @@ const Dashboard = () => {
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-paper">
-                          <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: PALETTE.violet }} />
                         </div>
                         <span className="w-9 shrink-0 text-right text-xs text-ink-muted">{pct}%</span>
                       </div>
@@ -348,8 +335,9 @@ const Dashboard = () => {
   );
 };
 
-const StatCard = ({ value, label, accent = "text-ink" }) => (
+const StatCard = ({ value, label, accent = "text-ink", dot }) => (
   <div className="rounded-xl border border-line bg-white p-4">
+    {dot && <span className="mb-2 block h-1.5 w-6 rounded-full" style={{ backgroundColor: dot }} />}
     <p className={`font-display text-3xl font-bold tracking-tight ${accent}`}>{value}</p>
     <p className="mt-1 text-xs text-ink-muted">{label}</p>
   </div>
