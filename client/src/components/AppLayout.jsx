@@ -279,7 +279,7 @@ const AppLayout = ({ title, children }) => {
       {/* Sidebar (desktop) */}
       <aside className="hidden w-60 shrink-0 border-r border-line bg-white md:flex md:flex-col">
         <Link to="/dashboard" className="flex items-center gap-2 px-5 py-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink text-sm font-bold text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blueprint text-sm font-bold text-white">
             V
           </div>
           <span className="font-display text-lg font-bold tracking-tight text-ink">
@@ -315,7 +315,7 @@ const AppLayout = ({ title, children }) => {
                 onClick={() => setMobileNavOpen(false)}
                 className="flex items-center gap-2"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink text-sm font-bold text-white">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blueprint text-sm font-bold text-white">
                   V
                 </div>
                 <span className="font-display text-lg font-bold tracking-tight text-ink">
@@ -379,10 +379,10 @@ const AppLayout = ({ title, children }) => {
           </nav>
 
           {title && (
-  <span className="hidden shrink-0 items-center font-display text-base font-semibold text-ink md:flex">
-    {title}
-  </span>
-)}
+            <span className="hidden shrink-0 items-center font-display text-base font-semibold text-ink md:flex">
+              {title}
+            </span>
+          )}
 
           <div className="flex-1" />
 
@@ -521,7 +521,7 @@ const AppLayout = ({ title, children }) => {
           <div className="relative">
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-xs font-bold text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-blueprint text-xs font-bold text-white"
             >
               {initials}
             </button>

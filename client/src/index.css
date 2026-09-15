@@ -7,19 +7,19 @@
   --color-panel: #ffffff;
   --color-line: #e2e8f0;
 
-  /* Neutral slate base + one steel-blue accent — no purple */
+  /* One blue accent everywhere — no orange, no purple, no black boxes */
   --color-blueprint: #1d4ed8;
   --color-blueprint-dark: #1e3a8a;
-  --color-marker: #ea580c;
+  --color-marker: #2563eb;
 
   --color-status-todo: #64748b;
-  --color-status-progress: #d97706;
-  --color-status-review: #4f46e5;
-  --color-status-done: #059669;
+  --color-status-progress: #2563eb;
+  --color-status-review: #1e3a8a;
+  --color-status-done: #1d4ed8;
 
   --color-priority-low: #94a3b8;
-  --color-priority-medium: #d97706;
-  --color-priority-high: #ea580c;
+  --color-priority-medium: #3b82f6;
+  --color-priority-high: #1d4ed8;
   --color-priority-critical: #dc2626;
 
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;

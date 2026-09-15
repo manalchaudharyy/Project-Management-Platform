@@ -14,7 +14,7 @@ const Profile = () => {
   const [pwError, setPwError] = useState("");
   const [pwSuccess, setPwSuccess] = useState("");
   const [pwLoading, setPwLoading] = useState(false);
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");  
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -39,12 +39,23 @@ const Profile = () => {
     e.preventDefault();
     setPwError("");
     setPwSuccess("");
+
+    if (newPassword !== confirmNewPassword) {
+      setPwError("New password and confirm password do not match");
+      return;
+    }
+    if (newPassword === currentPassword) {
+      setPwError("New password must be different from your current password");
+      return;
+    }
+
     setPwLoading(true);
     try {
       await axiosClient.put("/auth/change-password", { currentPassword, newPassword });
       setPwSuccess("Password changed successfully");
       setCurrentPassword("");
       setNewPassword("");
+      setConfirmNewPassword("");
     } catch (err) {
       setPwError(err.response?.data?.message || "Could not change password");
     } finally {
@@ -67,17 +78,6 @@ const Profile = () => {
       </AppLayout>
     );
   }
-
-// in handleChangePassword, before the axios call:
-  if (newPassword !== confirmNewPassword) {
-     setPwError("New password and confirm password do not match");
-      return;
-    }
-    if (newPassword === currentPassword) {
-     setPwError("New password must be different from your current password");
-      return;
-  }
-
 
   return (
     <AppLayout title="Profile">
@@ -122,16 +122,16 @@ const Profile = () => {
             minLength={6}
             className="w-full rounded-md border border-line px-3 py-2 text-sm"
           />
-          
-<input
-  type="password"
-  placeholder="Confirm new password"
-  value={confirmNewPassword}
-  onChange={(e) => setConfirmNewPassword(e.target.value)}
-  required
-  minLength={6}
-  className="w-full rounded-md border border-line px-3 py-2 text-sm"
-/>
+
+          <input
+            type="password"
+            placeholder="Confirm new password"
+            value={confirmNewPassword}
+            onChange={(e) => setConfirmNewPassword(e.target.value)}
+            required
+            minLength={6}
+            className="w-full rounded-md border border-line px-3 py-2 text-sm"
+          />
           <button
             type="submit"
             disabled={pwLoading}
