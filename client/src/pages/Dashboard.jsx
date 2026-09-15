@@ -17,10 +17,10 @@ import {
 export const PALETTE = {
   emerald: "#059669",
   amber: "#d97706",
-  violet: "#7c3aed",
-  rose: "#e11d48",
-  stone: "#78716c",
-  stoneLight: "#e7e5e4",
+  blue: "#1d4ed8",   
+  rose: "#dc2626",
+  stone: "#64748b",
+  stoneLight: "#e2e8f0",
 };
 
 const STATUS_SEGMENTS = [
