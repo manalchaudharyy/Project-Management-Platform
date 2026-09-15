@@ -14,6 +14,17 @@ const selectClasses =
 // can be auto-formatted even when the user didn't wrap it in ``` fences.
 // Not perfect — just checks for multiple lines + code-ish signals (braces,
 // semicolons, indentation, common keywords).
+
+
+// Splits comment content on ```code``` fences and renders each segment —
+// fenced parts as monospace blocks, everything else as whitespace-preserving
+// plain text (so line breaks/indentation from the textarea aren't collapsed).
+// Non-fenced segments that "look like code" (see looksLikeCode above) are
+// also rendered as monospace blocks, so backticks are optional.
+// Heuristic: decides whether a chunk of comment text "looks like code" so it
+// can be auto-formatted even when the user didn't wrap it in ``` fences.
+// Not perfect — just checks for multiple lines + code-ish signals (braces,
+// semicolons, indentation, common keywords).
 const looksLikeCode = (text) => {
   const trimmed = text.trim();
   if (!trimmed) return false;
@@ -29,8 +40,6 @@ const looksLikeCode = (text) => {
   const hasIndentedLine = lines.some((l) => /^(\s{2,}|\t)/.test(l));
   const multiLine = lines.length > 1;
 
-  // Multi-line + at least one strong signal, OR single line that's dense
-  // with code symbols and a keyword (e.g. "const x = 5;").
   return (
     (multiLine && (hasKeyword || hasIndentedLine || symbolDensity > 0.04)) ||
     (hasKeyword && symbolDensity > 0.08)
@@ -42,8 +51,22 @@ const looksLikeCode = (text) => {
 // plain text (so line breaks/indentation from the textarea aren't collapsed).
 // Non-fenced segments that "look like code" (see looksLikeCode above) are
 // also rendered as monospace blocks, so backticks are optional.
+//
+// If the ENTIRE comment already looks like code, it's rendered as a single
+// block without splitting on ``` at all — this avoids mangling real code
+// that happens to contain literal backtick sequences (e.g. code that has
+// "```" inside a string or comment).
 const renderCommentContent = (content) => {
   if (!content) return null;
+
+  if (looksLikeCode(content)) {
+    return (
+      <pre className="my-1.5 overflow-x-auto rounded-md bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100">
+        {content.trim()}
+      </pre>
+    );
+  }
+
   const parts = content.split(/```([\s\S]*?)```/g);
   return parts.map((part, i) => {
     if (i % 2 === 1) {
@@ -59,7 +82,6 @@ const renderCommentContent = (content) => {
     }
     if (!part) return null;
     if (looksLikeCode(part)) {
-      // Auto-detected code, no backticks needed
       return (
         <pre
           key={i}
@@ -76,7 +98,6 @@ const renderCommentContent = (content) => {
     );
   });
 };
-
 const TaskDetails = () => {
   const { id } = useParams();
   const currentUser = useSelector((state) => state.auth.user);
