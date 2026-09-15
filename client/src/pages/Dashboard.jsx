@@ -5,6 +5,7 @@ import axiosClient from "../api/axiosClient";
 import AppLayout from "../components/AppLayout";
 import { StatusBadge } from "../components/Badge";
 import Calendar from "../components/Calendar";
+import TodoWidget from "../components/TodoWidget";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell,
@@ -30,6 +31,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Calendar data: every task the user can see, with its project's name
+  // attached so the "all projects" view can show it in each chip's tooltip.
   const [calendarTasks, setCalendarTasks] = useState([]);
   const [calendarProjectId, setCalendarProjectId] = useState("all");
   const [calendarLoading, setCalendarLoading] = useState(true);
@@ -53,6 +56,9 @@ const Dashboard = () => {
         );
         setProjectStats(Object.fromEntries(statsEntries));
 
+        // Admins get a workspace-wide "how many people are on the platform"
+        // number alongside the project stats. Members/PMs don't see this —
+        // it's not their data to browse.
         if (isAdmin) {
           try {
             const usersRes = await axiosClient.get("/users");
@@ -62,6 +68,14 @@ const Dashboard = () => {
           }
         }
 
+        // Tasks for the calendar — one call per project (same pattern as
+        // projectStats above), so each task can be tagged with its
+        // project's name for the "all projects" view. The assignee comes
+        // straight through from the API response (t.assignee), so Calendar
+        // can render it per day without any extra fetching.
+        // NOTE: GET /tasks is paginated ({ data, totalCount, ... }, default
+        // limit 20) — pass a high limit so a project with >20 tasks doesn't
+        // get silently truncated on the calendar.
         try {
           const taskEntries = await Promise.all(
             list.map(async (p) => {
@@ -96,6 +110,7 @@ const Dashboard = () => {
       ? calendarTasks
       : calendarTasks.filter((t) => t.project === calendarProjectId || t.project?._id === calendarProjectId);
 
+  // Aggregate totals across every project (same as before)
   const totals = Object.values(projectStats).reduce(
     (acc, s) => {
       if (!s) return acc;
@@ -110,6 +125,7 @@ const Dashboard = () => {
     { total: 0, done: 0, inProgress: 0, review: 0, todo: 0, overdue: 0 }
   );
 
+  // Bar chart data: tasks by status
   const byStatusData = STATUS_SEGMENTS.map((s) => ({
     name: s.label,
     count:
@@ -124,6 +140,7 @@ const Dashboard = () => {
     { name: "Incomplete", value: totals.total - totals.done, color: "#e7e5e4" },
   ];
 
+  // Bar chart data: tasks by assignee, merged across projects
   const assigneeMap = {};
   Object.values(projectStats).forEach((s) => {
     (s?.tasksByAssignee || []).forEach((a) => {
@@ -132,6 +149,7 @@ const Dashboard = () => {
   });
   const byAssigneeData = Object.entries(assigneeMap).map(([name, count]) => ({ name, count }));
 
+  // Area chart data: completion trend, merged day-by-day across projects
   const trendMap = {};
   Object.values(projectStats).forEach((s) => {
     (s?.completionTrend || []).forEach((t) => {
@@ -161,32 +179,36 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Calendar, front and center — to-do is built into it (hover any
-          day for the "+", or use the panel under the grid) so there's no
-          separate widget taking up space beside it. */}
-      <div className="mb-8">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-ink">Calendar</h3>
-          <select
-            value={calendarProjectId}
-            onChange={(e) => setCalendarProjectId(e.target.value)}
-            className="rounded-md border border-line bg-white px-2.5 py-1.5 text-xs font-medium text-ink outline-none transition-colors focus:border-blueprint focus:ring-2 focus:ring-blueprint/20"
-          >
-            <option value="all">All projects</option>
-            {projects.map((p) => (
-              <option key={p._id} value={p._id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+      {/* Calendar + to-do, front and center */}
+      <div className="mb-8 grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-ink">Calendar</h3>
+            <select
+              value={calendarProjectId}
+              onChange={(e) => setCalendarProjectId(e.target.value)}
+              className="rounded-md border border-line bg-white px-2.5 py-1.5 text-xs font-medium text-ink outline-none transition-colors focus:border-blueprint focus:ring-2 focus:ring-blueprint/20"
+            >
+              <option value="all">All projects</option>
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {calendarLoading ? (
+            <div className="h-64 animate-pulse rounded-xl border border-line bg-paper" />
+          ) : (
+            // Calendar renders t.assignee per task chip — see Calendar.jsx.
+            <Calendar tasks={visibleCalendarTasks} showAssignee />
+          )}
         </div>
-        {calendarLoading ? (
-          <div className="h-64 animate-pulse rounded-xl border border-line bg-paper" />
-        ) : (
-          <Calendar tasks={visibleCalendarTasks} showAssignee />
-        )}
+
+        <TodoWidget />
       </div>
 
+      {/* Top stat row — plain numbers, no icon badges */}
       <div className={`mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4 ${isAdmin ? "lg:grid-cols-5" : ""}`}>
         <StatCard value={totals.done} label="Completed tasks" />
         <StatCard value={totals.total - totals.done} label="Incomplete tasks" />
@@ -195,6 +217,7 @@ const Dashboard = () => {
         {isAdmin && <StatCard value={userCount ?? "—"} label="Registered users" />}
       </div>
 
+      {/* 3-chart row */}
       <div className="mb-6 grid gap-4 lg:grid-cols-3">
         <ChartCard title="Tasks by status">
           <ResponsiveContainer width="100%" height={200}>
@@ -246,6 +269,7 @@ const Dashboard = () => {
         </ChartCard>
       </div>
 
+      {/* Trend chart, full width */}
       <div className="mb-8">
         <ChartCard title="Task completion over time (last 14 days)">
           {trendData.length === 0 ? (
@@ -265,6 +289,7 @@ const Dashboard = () => {
         </ChartCard>
       </div>
 
+      {/* Existing project list + quick actions, kept as-is below the charts */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <div className="rounded-xl border border-line bg-white">
