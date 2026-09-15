@@ -290,8 +290,11 @@ const changePassword = async (req, res) => {
       return res.status(400).json({ message: "Current and new password are required" });
     }
     if (newPassword.length < 6) {
-      return res.status(400).json({ message: "New password must be at least 6 characters" });
-    }
+  return res.status(400).json({ message: "New password must be at least 6 characters" });
+}
+if (newPassword === currentPassword) {
+  return res.status(400).json({ message: "New password must be different from the current password" });
+}
 
     const user = await User.findById(req.user.id);
     if (!user) {

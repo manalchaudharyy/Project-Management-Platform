@@ -14,7 +14,7 @@ const Profile = () => {
   const [pwError, setPwError] = useState("");
   const [pwSuccess, setPwSuccess] = useState("");
   const [pwLoading, setPwLoading] = useState(false);
-
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");  
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -68,6 +68,17 @@ const Profile = () => {
     );
   }
 
+// in handleChangePassword, before the axios call:
+  if (newPassword !== confirmNewPassword) {
+     setPwError("New password and confirm password do not match");
+      return;
+    }
+    if (newPassword === currentPassword) {
+     setPwError("New password must be different from your current password");
+      return;
+  }
+
+
   return (
     <AppLayout title="Profile">
       <div className="max-w-md rounded-lg border border-line bg-panel p-6">
@@ -111,6 +122,16 @@ const Profile = () => {
             minLength={6}
             className="w-full rounded-md border border-line px-3 py-2 text-sm"
           />
+          
+<input
+  type="password"
+  placeholder="Confirm new password"
+  value={confirmNewPassword}
+  onChange={(e) => setConfirmNewPassword(e.target.value)}
+  required
+  minLength={6}
+  className="w-full rounded-md border border-line px-3 py-2 text-sm"
+/>
           <button
             type="submit"
             disabled={pwLoading}

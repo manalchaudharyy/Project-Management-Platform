@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import AppLayout from "../components/AppLayout";
 import { StatusBadge } from "../components/Badge";
-
+import { useSelector } from "react-redux";
 const Projects = () => {
   const navigate = useNavigate();
 
@@ -21,6 +21,10 @@ const Projects = () => {
   const [editStatus, setEditStatus] = useState("planning");
   const [editStartDate, setEditStartDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
+  
+  const { user } = useSelector((state) => state.auth);
+  const canCreate = user?.role === "admin" || user?.role === "pm";
+
 
   const fetchProjects = async () => {
     try {
@@ -124,7 +128,9 @@ const Projects = () => {
             : {}),
         }
       );
-
+      {(user?.role === "admin" || user?.role === "pm" || project.owner === user?.id) && (
+  <>...Edit and Delete buttons...</>
+)}
       cancelEdit();
 
       await fetchProjects();
