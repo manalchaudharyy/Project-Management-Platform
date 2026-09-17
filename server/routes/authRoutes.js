@@ -9,6 +9,11 @@ const loginLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  // A successful login doesn't count against the limit — only failed
+  // attempts do. Without this, everyone on the same IP/network (e.g. an
+  // office wifi, or a NAT'd network) gets blocked once *anyone* on that
+  // IP fails to log in 5 times, even with a correct password.
+  skipSuccessfulRequests: true,
   message: { message: "Too many login attempts. Please try again in 15 minutes." },
 });
 const {
