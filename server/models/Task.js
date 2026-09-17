@@ -30,6 +30,17 @@ const taskSchema = new mongoose.Schema({
   dueDate: {
     type: Date,
   },
+  // Set by the deadline-reminder cron job once it has emailed for this
+  // due date, so it doesn't resend on every run. Reset to false whenever
+  // dueDate/status/assignee changes (see taskController.updateTask).
+  remindedUpcoming: {
+    type: Boolean,
+    default: false,
+  },
+  remindedOverdue: {
+    type: Boolean,
+    default: false,
+  },
   history: [
     {
       field: { type: String, required: true },

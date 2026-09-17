@@ -4,6 +4,8 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 const Notification = require("../models/Notifications");
 const { emitToUser } = require("../socket");
+const sendEmail = require("../utils/sendEmail");
+const { projectInvitationEmail } = require("../utils/emailTemplates");
 const PROJECT_STATUS_VALUES = [
   "planning",
   "active",
@@ -322,9 +324,6 @@ const updateProject = async (req, res) => {
 /* =========================================================
    ADD MEMBER
 ========================================================= */
-/* =========================================================
-   ADD MEMBER
-========================================================= */
 const addMember = async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
@@ -359,6 +358,12 @@ const addMember = async (req, res) => {
       project: project._id,
     });
     emitToUser(userId, "notification:new", notification);
+
+    const inviter = await User.findById(req.user.id).select("username");
+    sendEmail({
+      to: memberUser.email,
+      ...projectInvitationEmail(project.name, inviter?.username || "A teammate"),
+    }).catch((error) => console.error("Project invitation email failed:", error.message));
 
     res.status(200).json(project);
   } catch (error) {

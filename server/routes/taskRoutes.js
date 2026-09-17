@@ -6,13 +6,14 @@ const {
   getTaskById,
   updateTask,
   deleteTask,
-  uploadAttachment,        // 👈 add
+  uploadAttachment,
+  deleteAttachment,
 } = require("../controllers/taskController");
 
 const { getComments, createComment } = require("../controllers/commentController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 const validateObjectId = require("../middleware/validateObjectId");
-const upload = require("../middleware/upload");      // 👈 add
+const upload = require("../middleware/upload");
 
 router.post("/", protect, authorize("admin", "pm"), createTask);
 router.get("/", protect, getTasks);
@@ -28,12 +29,17 @@ router.post(
   createComment
 );
 
-// 👇 add ye
 router.post(
   "/:id/attachments",
   protect,
   validateObjectId("id"),
   upload.single("file"),
   uploadAttachment
+);
+router.delete(
+  "/:id/attachments/:attachmentId",
+  protect,
+  validateObjectId("id"),
+  deleteAttachment
 );
 module.exports = router;

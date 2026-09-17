@@ -2,9 +2,21 @@ const Task = require("../models/Task");
 const Project = require("../models/Project");
 const { emitToProject } = require("../socket");
 const cloudinary = require("../config/cloudinary");
+const sendEmail = require("../utils/sendEmail");
+const { taskAssignmentEmail } = require("../utils/emailTemplates");
 
 const TASK_STATUS_VALUES = ["todo", "in-progress", "review", "done"];
 const TASK_PRIORITY_VALUES = ["low", "medium", "high", "critical"];
+
+// Fire-and-forget: logs on failure but never blocks the API response or
+// throws into the caller, since a bounced/slow email shouldn't fail a
+// task create/update.
+const notifyAssignee = (task, assignee) => {
+  if (!assignee?.email) return;
+  sendEmail({ to: assignee.email, ...taskAssignmentEmail(task, assignee.username) }).catch(
+    (error) => console.error("Task assignment email failed:", error.message)
+  );
+};
 
 const createTask = async (req, res) => {
   try {
@@ -48,6 +60,10 @@ const createTask = async (req, res) => {
     await task.populate({ path: "assignee", select: "username email" });
 
     emitToProject(task.project.toString(), "taskCreated", task);
+
+    if (task.assignee) {
+      notifyAssignee(task, task.assignee); // already populated above
+    }
 
     res.status(201).json(task);
   } catch (error) {
@@ -120,10 +136,10 @@ const getTasks = async (req, res) => {
 
 const getTaskById = async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id).populate({
-      path: "assignee",
-      select: "username email",
-    });
+    const task = await Task.findById(req.params.id).populate([
+      { path: "assignee", select: "username email" },
+      { path: "attachments.uploadedBy", select: "username" },
+    ]);
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
@@ -215,6 +231,14 @@ const updateTask = async (req, res) => {
       });
 
       task[field] = newValue;
+
+      // A changed due date, a re-open (status no longer "done"), or a
+      // reassignment all mean past reminders are stale — let the cron
+      // job send them again instead of staying silent forever.
+      if (field === "dueDate" || field === "status" || field === "assignee") {
+        task.remindedUpcoming = false;
+        task.remindedOverdue = false;
+      }
     };
 
     if (req.user.role === "member") {
@@ -232,6 +256,11 @@ const updateTask = async (req, res) => {
     await updatedTask.populate({ path: "assignee", select: "username email" });
 
     emitToProject(updatedTask.project.toString(), "taskUpdated", updatedTask);
+
+    const assigneeChanged = historyEntries.some((h) => h.field === "assignee");
+    if (assigneeChanged && updatedTask.assignee) {
+      notifyAssignee(updatedTask, updatedTask.assignee); // already populated above
+    }
 
     res.status(200).json(updatedTask);
   } catch (error) {
@@ -271,7 +300,6 @@ const deleteTask = async (req, res) => {
   }
 };
 
-// naya function — file ko cloudinary pe upload kar ke task.attachments mein save karta hai
 const uploadAttachment = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
@@ -284,7 +312,6 @@ const uploadAttachment = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // same access rule jo updateTask mein hai — PM/Admin ya project member
     const isPmOrAdmin = req.user.role === "pm" || req.user.role === "admin";
 
     let isProjectMember = false;
@@ -318,7 +345,10 @@ const uploadAttachment = async (req, res) => {
     });
 
     await task.save();
-    await task.populate({ path: "assignee", select: "username email" });
+    await task.populate([
+      { path: "assignee", select: "username email" },
+      { path: "attachments.uploadedBy", select: "username" },
+    ]);
 
     emitToProject(task.project.toString(), "taskUpdated", task);
 
@@ -329,6 +359,43 @@ const uploadAttachment = async (req, res) => {
   }
 };
 
+const deleteAttachment = async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    const attachment = task.attachments.id(req.params.attachmentId);
+    if (!attachment) {
+      return res.status(404).json({ message: "Attachment not found" });
+    }
+
+    const isPmOrAdmin = req.user.role === "pm" || req.user.role === "admin";
+    const isUploader = attachment.uploadedBy.toString() === req.user.id;
+
+    if (!isPmOrAdmin && !isUploader) {
+      return res.status(403).json({
+        message: "Forbidden: only the uploader or a PM/Admin can delete this attachment",
+      });
+    }
+
+    attachment.deleteOne();
+    await task.save();
+    await task.populate([
+      { path: "assignee", select: "username email" },
+      { path: "attachments.uploadedBy", select: "username" },
+    ]);
+
+    emitToProject(task.project.toString(), "taskUpdated", task);
+
+    res.status(200).json(task);
+  } catch (error) {
+    console.error("Delete attachment error:", error.message);
+    res.status(500).json({ message: "Server error deleting attachment" });
+  }
+};
+
 module.exports = {
   createTask,
   getTasks,
@@ -336,4 +403,5 @@ module.exports = {
   updateTask,
   deleteTask,
   uploadAttachment,
+  deleteAttachment,
 };

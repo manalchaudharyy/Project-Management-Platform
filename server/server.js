@@ -15,6 +15,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const { initSocket } = require("./socket");
+const { startDeadlineCron } = require("./jobs/deadlineReminder");
 const app = express()
 const PORT = process.env.PORT || 5000;
 const aiRoutes = require("./routes/aiRoutes");
@@ -76,4 +77,5 @@ initSocket(server);
 connectDB();
 server.listen(PORT,()=>{
     console.log(`Server is running on Port ${PORT}`);
+    startDeadlineCron();
 });

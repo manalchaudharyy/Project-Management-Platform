@@ -1,12 +1,32 @@
 const Comment = require("../models/Comment");
 const Task = require("../models/Task");
 const Project = require("../models/Project");
+const User = require("../models/User");
 const cloudinary = require("../config/cloudinary");
+const sendEmail = require("../utils/sendEmail");
+const { mentionEmail } = require("../utils/emailTemplates");
+
+// Finds @username mentions in a comment's text and emails each mentioned
+// user (skipping the commenter themself and any @handle that isn't a real
+// username). Fire-and-forget — a failed email must never fail the comment.
+const notifyMentions = async (content, task, authorId, authorUsername) => {
+  if (!content) return;
+
+  const usernames = [...new Set([...content.matchAll(/@(\w+)/g)].map((m) => m[1]))];
+  if (usernames.length === 0) return;
+
+  const mentionedUsers = await User.find({ username: { $in: usernames } });
+
+  for (const user of mentionedUsers) {
+    if (user._id.toString() === authorId) continue; // don't notify yourself
+    sendEmail({ to: user.email, ...mentionEmail(task, authorUsername, content) }).catch(
+      (error) => console.error(`Mention email failed for ${user.email}:`, error.message)
+    );
+  }
+};
 
 // Shared access check: a user can view/comment on a task if they're an
-// admin, or they're the project's owner/a project member. This mirrors the
-// access pattern already used in getProjects/searchController, so comments
-// don't leak into projects a user otherwise can't see.
+// admin, or they're the project's owner/a project member.
 const canAccessTask = async (task, user) => {
   if (user.role === "admin") return true;
 
@@ -58,8 +78,6 @@ const createComment = async (req, res) => {
     const { content } = req.body;
     const hasFile = !!req.file;
 
-    // A comment needs content OR an attached file — not necessarily both
-    // (e.g. just dropping a file with no message).
     if ((!content || !content.trim()) && !hasFile) {
       return res.status(400).json({ message: "Comment content or an attachment is required" });
     }
@@ -90,6 +108,8 @@ const createComment = async (req, res) => {
     });
     await comment.populate("author", "username");
 
+    notifyMentions(content, task, req.user.id, comment.author.username);
+
     res.status(201).json(comment);
   } catch (error) {
     if (error.name === "ValidationError") {
@@ -108,8 +128,6 @@ const updateComment = async (req, res) => {
       return res.status(404).json({ message: "Comment not found" });
     }
 
-    // Only the comment's own author can edit it - not even a PM/Admin,
-    // per spec ("only the comment's author can edit/delete their own").
     if (comment.author.toString() !== req.user.id) {
       return res.status(403).json({ message: "Forbidden: you can only edit your own comments" });
     }
