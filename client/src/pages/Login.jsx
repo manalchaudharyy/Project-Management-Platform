@@ -30,15 +30,16 @@ const Login = () => {
       );
 
       navigate("/dashboard");
-    } catch (err) {
-      if (err.response?.data?.code === "EMAIL_NOT_VERIFIED") {
-        setNeedsVerification(true);
-        setError(err.response.data.message);
-      } else {
-        setError("Invalid email or password");
-      }
-    }
+      } catch (err) {
+  if (err.response?.data?.code === "EMAIL_NOT_VERIFIED") {
+    setNeedsVerification(true);
+    setError(err.response.data.message);
+  } else {
+    setError("Invalid email or password");
+  }
+}
   };
+
 
   const handleResend = async () => {
     setResendStatus("Sending…");
