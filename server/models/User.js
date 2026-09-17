@@ -43,6 +43,17 @@ const userSchema = new mongoose.Schema({
    emailVerificationExpires: {
     type: Date,
   },
+   // Account-level lockout — counts consecutive failed logins regardless
+   // of which IP they came from. Reset to 0 on any successful login.
+   failedLoginAttempts: {
+    type: Number,
+    default: 0,
+  },
+   // Set once failedLoginAttempts hits the threshold; login is blocked
+   // until this timestamp passes, then the counter resets.
+   lockUntil: {
+    type: Date,
+  },
  
 }, { timestamps: true });
 

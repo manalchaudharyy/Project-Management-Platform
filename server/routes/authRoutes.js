@@ -1,5 +1,16 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const router = express.Router();
+
+// Stricter than the global API limiter — login is the most brute-forceable
+// endpoint in the app.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many login attempts. Please try again in 15 minutes." },
+});
 const {
   register,
   login,
@@ -15,7 +26,7 @@ const {
 const { protect } = require("../middleware/authMiddleware");
 
 router.post("/register", register);
-router.post("/login", login);
+router.post("/login", loginLimiter, login);
 router.get("/me", protect, getMe);
 router.post("/logout", protect, logout);
 router.post("/refresh", protect, refresh);

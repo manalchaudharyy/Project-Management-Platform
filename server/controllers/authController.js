@@ -141,6 +141,9 @@ const register = async (req, res) => {
   }
 };
 
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -154,9 +157,32 @@ const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    // Locked? Tell them how long is left rather than a generic error, so
+    // it's distinguishable from a plain wrong password.
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockUntil - new Date()) / 60000);
+      return res.status(423).json({
+        message: `Account locked due to too many failed attempts. Try again in ${minutesLeft} minute(s).`,
+        code: "ACCOUNT_LOCKED",
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+      if (user.failedLoginAttempts >= MAX_LOGIN_ATTEMPTS) {
+        user.lockUntil = new Date(Date.now() + LOCK_DURATION_MS);
+        user.failedLoginAttempts = 0;
+      }
+      await user.save();
       return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // Correct password — clear any lockout state.
+    if (user.failedLoginAttempts > 0 || user.lockUntil) {
+      user.failedLoginAttempts = 0;
+      user.lockUntil = undefined;
+      await user.save();
     }
 
     if (!user.isVerified) {

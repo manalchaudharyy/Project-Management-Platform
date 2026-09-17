@@ -12,6 +12,8 @@ const messageRoutes = require("./routes/messageRoutes");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const { initSocket } = require("./socket");
 const app = express()
 const PORT = process.env.PORT || 5000;
@@ -37,6 +39,19 @@ app.use(
     credentials: true,
   })
 );
+app.use(helmet());
+
+// General limiter: applies to every /api request — stops brute-force /
+// scraping abuse without getting in the way of normal use.
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // 300 requests per IP per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests, please try again later." },
+});
+app.use("/api", apiLimiter);
+
 app.use(express.json());
 app.use("/api/projects", aiRoutes);
 app.use("/api/tasks", aiRoutes);
