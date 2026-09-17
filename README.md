@@ -206,11 +206,10 @@ This is a two-part deployment: the Express/Socket.io backend and the Vite/React 
 3. Deploy, then note the frontend's public URL and update `CLIENT_URL` on the backend to match (so CORS allows it).
 
 ### Live URLs
-- Frontend: _add your deployed URL here_
-- Backend / API: _add your deployed URL here_
-- Test credentials (if applicable): _add here_
 
----
+- Frontend: https://project-management-platform-green.vercel.app
+- Backend / API: https://project-management-platform-azzk.onrender.com
+
 
 ## 🗺 Known Limitations / Future Improvements
 
